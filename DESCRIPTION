@@ -1,0 +1,16 @@
+Package: GMCMH
+Version: 0.3-9
+Date: 2015-1-26
+Title: Univariate and Multivariate Spatial-temporal Modeling
+Author: Jianan Hui <jhui003@ucr.edu>
+Maintainer: Jianan Hui <jhui003@ucr.edu>
+Depends: R (>= 1.8.0), coda, magic, abind, Formula
+Suggests: MBA, geoR
+Description: Fits univariate and multivariate spatio-temporal
+        models with Markov chain Monte Carlo (MCMC).
+License: GPL (>= 2)
+URL: http://blue.for.msu.edu/software
+Repository: CRAN
+Packaged: 2015-01-26 20:07:01 UTC; andy
+Date/Publication: 2015-01-27 08:24:52
+NeedsCompilation: yes
