@@ -751,7 +751,6 @@ extern "C" {
 
        
 
-
        //theta[t*nTheta+sigmaSqIndx] = tempsigmasq;
 
        /************/
