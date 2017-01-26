@@ -306,9 +306,12 @@ extern "C" {
         valuepropose=pmvnorm(nop,lowerpropose,upperpropose,tmp_p2,tmp_pp);
 
         if (runif(0.0,1.0)<prob*valuecurrent){
-           double lowercurrentvalue=*lowercurrent;
-           double uppercurrentvalue=*uppercurrent;
-           *tempbeta0=runif(lowercurrentvalue,uppercurrentvalue);
+           // double lowercurrentvalue=*lowercurrent;
+           // printVec(lowercurrent,p);
+           // Rprintf("%.3f\t", lowercurrentvalue[0],lowercurrentvalue[1])
+           // double uppercurrentvalue=*uppercurrent;
+           tempbeta0[0]=runif(lowercurrent[0],uppercurrent[0]);
+           tempbeta0[1]=runif(lowercurrent[1],uppercurrent[1]);
            double despropose;
            double descurrent;
            despropose=dmvnorm(tempbeta0,tmp_p2,tmp_pp,p);
@@ -461,9 +464,10 @@ extern "C" {
           valuecurrentbeta=pmvnorm(nop,lowercurrentbeta,uppercurrentbeta,tmp_p2,tmp_pp);
 
        if (runif(0.0,1.0)<prob*valuecurrentbeta){
-          double lowercurrentbetavalue=*lowercurrentbeta;
-          double uppercurrentbetavalue=*uppercurrentbeta;
-          *tempbeta=runif(lowercurrentbetavalue,uppercurrentbetavalue);
+          // double lowercurrentbetavalue=*lowercurrentbeta;
+          // double uppercurrentbetavalue=*uppercurrentbeta;
+          tempbeta[0]=runif(lowercurrentbeta[0],uppercurrentbeta[0]);
+          tempbeta[1]=runif(lowercurrentbeta[1],uppercurrentbeta[1]);
           double desproposebeta;
           double descurrentbeta;
           desproposebeta=dmvnorm(tempbeta,tmp_p2,tmp_pp,p);
@@ -671,7 +675,7 @@ extern "C" {
             if (((temptausq-theta[t*nTheta+tauSqIndx])*(temptausq-theta[t*nTheta+tauSqIndx]))>(radiustausq*radiustausq)){
               acceptmarktausq=2;
             } else{
-              acceptmarktausq=0;             
+              acceptmarktausq=0;
             }
 
        }  while(acceptmarktausq==0);
@@ -714,7 +718,7 @@ extern "C" {
        int acceptmarksigmasq=0;
        double valueproposesigmasq=pgamma(1/(tempsigmasq+radiussigmasq),sigmaSqIG[t*2]+n/2.0, 1.0/(sigmaSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n2, &incOne)*theta[t*nTheta+sigmaSqIndx]),1,0)-pgamma(1/(temptausq-radiustausq),sigmaSqIG[t*2]+n/2.0, 1.0/(sigmaSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n2, &incOne)*theta[t*nTheta+sigmaSqIndx]),1,0);
        double valuecurrentsigmasq=pgamma(1/(theta[t*nTheta+tauSqIndx]+radiustausq),sigmaSqIG[t*2]+n/2.0, 1.0/(sigmaSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n2, &incOne)*theta[t*nTheta+sigmaSqIndx]),1,0)-pgamma(1/(theta[t*nTheta+tauSqIndx]-radiustausq),sigmaSqIG[t*2]+n/2.0, 1.0/(sigmaSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n2, &incOne)*theta[t*nTheta+sigmaSqIndx]),1,0);
-       
+
 
        if (runif(0.0,1.0)<prob*valuecurrentsigmasq){
 
@@ -736,10 +740,8 @@ extern "C" {
             } else{
                 acceptmarksigmasq=0;
               }
-            
+
        }  while(acceptmarksigmasq==0);
-       double valueproposesigmasq=pgamma(1/(tempsigmasq+radiussigmasq),sigmaSqIG[t*2]+n/2.0, 1.0/(sigmaSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n2, &incOne)*theta[t*nTheta+sigmaSqIndx]),1,0)-pgamma(1/(temptausq-radiustausq),sigmaSqIG[t*2]+n/2.0, 1.0/(sigmaSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n2, &incOne)*theta[t*nTheta+sigmaSqIndx]),1,0);
-        double valuecurrentsigmasq=pgamma(1/(theta[t*nTheta+tauSqIndx]+radiustausq),sigmaSqIG[t*2]+n/2.0, 1.0/(sigmaSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n2, &incOne)*theta[t*nTheta+sigmaSqIndx]),1,0)-pgamma(1/(theta[t*nTheta+tauSqIndx]-radiustausq),sigmaSqIG[t*2]+n/2.0, 1.0/(sigmaSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n2, &incOne)*theta[t*nTheta+sigmaSqIndx]),1,0);
         double accept_prob_sigmasq=(1-prob*valueproposesigmasq)/(1-valueproposesigmasq)*(1-valuecurrentsigmasq)/(1-prob*valuecurrentsigmasq);
             if (accept_prob_sigmasq>=1) {
               accept_prob_sigmasq=1;
@@ -749,7 +751,7 @@ extern "C" {
             }
        }
 
-       
+
 
        //theta[t*nTheta+sigmaSqIndx] = tempsigmasq;
 
