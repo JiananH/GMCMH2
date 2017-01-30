@@ -294,28 +294,28 @@ extern "C" {
         for (int dim=0; dim<p; dim++){
               lowercurrent[dim]=beta0[dim]-radiusbeta0[dim];
               uppercurrent[dim]=beta0[dim]+radiusbeta0[dim];
-              lowerpropose[dim]=tempbeta0[dim]-radiusbeta0[dim];
-              upperpropose[dim]=tempbeta0[dim]+radiusbeta0[dim];
 
             }
         int nop=2;
         double valuecurrent=0.0;
-        double valuepropose=0.0;
-
         valuecurrent=pmvnorm(nop,lowercurrent,uppercurrent,tmp_p2,tmp_pp);
-        valuepropose=pmvnorm(nop,lowerpropose,upperpropose,tmp_p2,tmp_pp);
 
         if (runif(0.0,1.0)<prob*valuecurrent){
-           // double lowercurrentvalue=*lowercurrent;
-           // printVec(lowercurrent,p);
-           // Rprintf("%.3f\t", lowercurrentvalue[0],lowercurrentvalue[1])
-           // double uppercurrentvalue=*uppercurrent;
+
            tempbeta0[0]=runif(lowercurrent[0],uppercurrent[0]);
            tempbeta0[1]=runif(lowercurrent[1],uppercurrent[1]);
            double despropose;
            double descurrent;
            despropose=dmvnorm(tempbeta0,tmp_p2,tmp_pp,p);
            descurrent=dmvnorm(beta0,tmp_p2,tmp_pp,p);
+
+           for (int dim=0; dim<p; dim++){
+              lowerpropose[dim]=tempbeta0[dim]-radiusbeta0[dim];
+              upperpropose[dim]=tempbeta0[dim]+radiusbeta0[dim];
+
+            }
+           double valuepropose=0.0;
+           valuepropose=pmvnorm(nop,lowerpropose,upperpropose,tmp_p2,tmp_pp);
 
            double accept_prob=despropose/descurrent*valuepropose/valuecurrent;
            if(runif(0.0,1.0)<accept_prob){
@@ -351,6 +351,15 @@ extern "C" {
             }
 
             }while(acceptindicator==0);
+
+            for (int dim=0; dim<p; dim++){
+              lowerpropose[dim]=tempbeta0[dim]-radiusbeta0[dim];
+              upperpropose[dim]=tempbeta0[dim]+radiusbeta0[dim];
+
+            }
+           double valuepropose=0.0;
+           valuepropose=pmvnorm(nop,lowerpropose,upperpropose,tmp_p2,tmp_pp);
+
             double accept_prob=(1-prob*valuepropose)/(1-valuepropose)*(1-valuecurrent)/(1-prob*valuecurrent);
             if (accept_prob>=1) {
               accept_prob=1;
@@ -453,25 +462,29 @@ extern "C" {
       for (int dim=0; dim<p; dim++){
             lowercurrentbeta[dim]=beta[t*p+dim]-radiusbeta[dim];
             uppercurrentbeta[dim]=beta[t*p+dim]+radiusbeta[dim];
-            lowerproposebeta[dim]=tempbeta[dim]-radiusbeta[dim];
-            upperproposebeta[dim]=tempbeta[dim]+radiusbeta[dim];
           }
           int nop=2;
           double valuecurrentbeta=0.0;
-          double valueproposebeta=0.0;
 
-          valueproposebeta=pmvnorm(nop,lowerproposebeta,upperproposebeta,tmp_p2,tmp_pp);
           valuecurrentbeta=pmvnorm(nop,lowercurrentbeta,uppercurrentbeta,tmp_p2,tmp_pp);
 
        if (runif(0.0,1.0)<prob*valuecurrentbeta){
-          // double lowercurrentbetavalue=*lowercurrentbeta;
-          // double uppercurrentbetavalue=*uppercurrentbeta;
           tempbeta[0]=runif(lowercurrentbeta[0],uppercurrentbeta[0]);
           tempbeta[1]=runif(lowercurrentbeta[1],uppercurrentbeta[1]);
           double desproposebeta;
           double descurrentbeta;
           desproposebeta=dmvnorm(tempbeta,tmp_p2,tmp_pp,p);
           descurrentbeta=dmvnorm(beta,tmp_p2,tmp_pp,p);
+
+           for (int dim=0; dim<p; dim++){
+
+            lowerproposebeta[dim]=tempbeta[dim]-radiusbeta[dim];
+            upperproposebeta[dim]=tempbeta[dim]+radiusbeta[dim];
+          }
+
+          double valueproposebeta=0.0;
+          valueproposebeta=pmvnorm(nop,lowerproposebeta,upperproposebeta,tmp_p2,tmp_pp);
+
           double accept_prob_beta1=desproposebeta/descurrentbeta*valueproposebeta/valuecurrentbeta;
             if (runif(0.0,1.0)<accept_prob_beta1){
            beta[t*p]=tempbeta[0];
@@ -505,13 +518,19 @@ extern "C" {
                 }
 
            }while(acceptindicator==0);
-             double accept_prob_beta2=(1-prob*valueproposebeta)/(1-valueproposebeta)*(1-valuecurrentbeta)/(1-prob*valuecurrentbeta);
 
-                  if (runif(0.0,1.0)<accept_prob_beta2){
+            for (int dim=0; dim<p; dim++){
+              lowerproposebeta[dim]=tempbeta[dim]-radiusbeta[dim];
+              upperproposebeta[dim]=tempbeta[dim]+radiusbeta[dim];
+            }
+              double valueproposebeta=0.0;
+              valueproposebeta=pmvnorm(nop,lowerproposebeta,upperproposebeta,tmp_p2,tmp_pp);
+              double accept_prob_beta2=(1-prob*valueproposebeta)/(1-valueproposebeta)*(1-valuecurrentbeta)/(1-prob*valuecurrentbeta);
+            if (runif(0.0,1.0)<accept_prob_beta2){
 
-                    beta[t*p]=tempbeta[0];
-                    beta[t*p+1]=tempbeta[1];
-                  }
+              beta[t*p]=tempbeta[0];
+              beta[t*p+1]=tempbeta[1];
+            }
        }
 
 
@@ -651,7 +670,6 @@ extern "C" {
        double radiustausq=REAL(radiustausq_r)[0];
        double temptausq;
        int acceptmarktausq=0;
-       double valueproposetausq=pgamma(1/(temptausq+radiustausq),tauSqIG[t*2]+n/2.0,1.0/(tauSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n, &incOne)),1,0)-pgamma(1/(temptausq-radiustausq),tauSqIG[t*2]+n/2.0,1.0/(tauSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n, &incOne)),1,0);
        double valuecurrenttausq=pgamma(1/(theta[t*nTheta+tauSqIndx]+radiustausq),tauSqIG[t*2]+n/2.0,1.0/(tauSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n, &incOne)),1,0)-pgamma(1/(theta[t*nTheta+tauSqIndx]-radiustausq),tauSqIG[t*2]+n/2.0,1.0/(tauSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n, &incOne)),1,0);
 
 
@@ -661,6 +679,7 @@ extern "C" {
         double uppercurrenttausq=theta[t*nTheta+tauSqIndx]+radiustausq;
 
         temptausq=runif(lowercurrenttausq,uppercurrenttausq);
+        double valueproposetausq=pgamma(1/(temptausq+radiustausq),tauSqIG[t*2]+n/2.0,1.0/(tauSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n, &incOne)),1,0)-pgamma(1/(temptausq-radiustausq),tauSqIG[t*2]+n/2.0,1.0/(tauSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n, &incOne)),1,0);
 
         double accept_prob_tausq1=dgamma(temptausq,tauSqIG[t*2]+n/2.0,1.0/(tauSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n, &incOne)),0)/dgamma(theta[t*nTheta+tauSqIndx],tauSqIG[t*2]+n/2.0,1.0/(tauSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n, &incOne)),0)*valueproposetausq/valuecurrenttausq;
 
@@ -672,19 +691,22 @@ extern "C" {
          do {
 
          temptausq=1.0/rgamma(tauSqIG[t*2]+n/2.0,1.0/(tauSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n, &incOne)));
+
             if (((temptausq-theta[t*nTheta+tauSqIndx])*(temptausq-theta[t*nTheta+tauSqIndx]))>(radiustausq*radiustausq)){
-              acceptmarktausq=2;
+              acceptmarktausq=1;
             } else{
               acceptmarktausq=0;
             }
 
        }  while(acceptmarktausq==0);
 
-       double accept_prob_tausq=(1-prob*valueproposetausq)/(1-valueproposetausq)*(1-valuecurrenttausq)/(1-prob*valuecurrenttausq);
-            if (accept_prob_tausq>=1) {
-              accept_prob_tausq=1;
+       double valueproposetausq=pgamma(1/(temptausq+radiustausq),tauSqIG[t*2]+n/2.0,1.0/(tauSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n, &incOne)),1,0)-pgamma(1/(temptausq-radiustausq),tauSqIG[t*2]+n/2.0,1.0/(tauSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n, &incOne)),1,0);
+
+       double accept_prob_tausq2=(1-prob*valueproposetausq)/(1-valueproposetausq)*(1-valuecurrenttausq)/(1-prob*valuecurrenttausq);
+            if (accept_prob_tausq2>=1) {
+              accept_prob_tausq2=1;
             }
-            if (runif(0.0,1.0)<accept_prob_tausq){
+            if (runif(0.0,1.0)<accept_prob_tausq2){
               theta[t*nTheta+tauSqIndx] = temptausq;
             }
        }
@@ -709,14 +731,10 @@ extern "C" {
 
 
        /************/
-
-       //double radiussigmasq=0.0586;
-       //double radiussigmasq=0.1490;
-       //double radiussigmasq=0.2466*2;
        double radiussigmasq=REAL(radiussigmasq_r)[0];
        double tempsigmasq;
        int acceptmarksigmasq=0;
-       double valueproposesigmasq=pgamma(1/(tempsigmasq+radiussigmasq),sigmaSqIG[t*2]+n/2.0, 1.0/(sigmaSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n2, &incOne)*theta[t*nTheta+sigmaSqIndx]),1,0)-pgamma(1/(temptausq-radiustausq),sigmaSqIG[t*2]+n/2.0, 1.0/(sigmaSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n2, &incOne)*theta[t*nTheta+sigmaSqIndx]),1,0);
+
        double valuecurrentsigmasq=pgamma(1/(theta[t*nTheta+tauSqIndx]+radiustausq),sigmaSqIG[t*2]+n/2.0, 1.0/(sigmaSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n2, &incOne)*theta[t*nTheta+sigmaSqIndx]),1,0)-pgamma(1/(theta[t*nTheta+tauSqIndx]-radiustausq),sigmaSqIG[t*2]+n/2.0, 1.0/(sigmaSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n2, &incOne)*theta[t*nTheta+sigmaSqIndx]),1,0);
 
 
@@ -726,6 +744,8 @@ extern "C" {
         double uppercurrentsigmasq=theta[t*nTheta+sigmaSqIndx]+radiussigmasq;
 
         tempsigmasq=runif(lowercurrentsigmasq,uppercurrentsigmasq);
+
+        double valueproposesigmasq=pgamma(1/(tempsigmasq+radiussigmasq),sigmaSqIG[t*2]+n/2.0, 1.0/(sigmaSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n2, &incOne)*theta[t*nTheta+sigmaSqIndx]),1,0)-pgamma(1/(temptausq-radiustausq),sigmaSqIG[t*2]+n/2.0, 1.0/(sigmaSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n2, &incOne)*theta[t*nTheta+sigmaSqIndx]),1,0);
 
         double accept_prob_sigmasq1=dgamma(tempsigmasq,sigmaSqIG[t*2]+n/2.0, 1.0/(sigmaSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n2, &incOne)*theta[t*nTheta+sigmaSqIndx]),0)/dgamma(theta[t*nTheta+sigmaSqIndx],sigmaSqIG[t*2]+n/2.0, 1.0/(sigmaSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n2, &incOne)*theta[t*nTheta+sigmaSqIndx]),0)*valueproposesigmasq/valuecurrentsigmasq;
 
@@ -742,11 +762,13 @@ extern "C" {
               }
 
        }  while(acceptmarksigmasq==0);
-        double accept_prob_sigmasq=(1-prob*valueproposesigmasq)/(1-valueproposesigmasq)*(1-valuecurrentsigmasq)/(1-prob*valuecurrentsigmasq);
-            if (accept_prob_sigmasq>=1) {
-              accept_prob_sigmasq=1;
+        double valueproposesigmasq=pgamma(1/(tempsigmasq+radiussigmasq),sigmaSqIG[t*2]+n/2.0, 1.0/(sigmaSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n2, &incOne)*theta[t*nTheta+sigmaSqIndx]),1,0)-pgamma(1/(temptausq-radiustausq),sigmaSqIG[t*2]+n/2.0, 1.0/(sigmaSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n2, &incOne)*theta[t*nTheta+sigmaSqIndx]),1,0);
+
+        double accept_prob_sigmasq2=(1-prob*valueproposesigmasq)/(1-valueproposesigmasq)*(1-valuecurrentsigmasq)/(1-prob*valuecurrentsigmasq);
+            if (accept_prob_sigmasq2>=1) {
+              accept_prob_sigmasq2=1;
             }
-            if (runif(0.0,1.0)<accept_prob_sigmasq){
+            if (runif(0.0,1.0)<accept_prob_sigmasq2){
               theta[t*nTheta+sigmaSqIndx] = tempsigmasq;
             }
        }
