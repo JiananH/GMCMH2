@@ -324,7 +324,7 @@ spDynLMmodgtwo <- function(formula, data = parent.frame(), coords, knots,
     out$knot.coords <- knot.coords
   }
  
-  class(out) <- "spDynLMmod"
+  class(out) <- "GMCMH2"
   out  
 }
 
