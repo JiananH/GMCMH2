@@ -304,10 +304,10 @@ extern "C" {
 
            tempbeta0[0]=runif(lowercurrent[0],uppercurrent[0]);
            tempbeta0[1]=runif(lowercurrent[1],uppercurrent[1]);
-           double despropose;
-           double descurrent;
-           despropose=dmvnorm(tempbeta0,tmp_p2,tmp_pp,p);
-           descurrent=dmvnorm(beta0,tmp_p2,tmp_pp,p);
+           double despropose=1.0;
+           double descurrent=1.0;
+           // despropose=dmvnorm(tempbeta0,tmp_p2,tmp_pp,p);
+           // descurrent=dmvnorm(beta0,tmp_p2,tmp_pp,p);
 
            for (int dim=0; dim<p; dim++){
               lowerpropose[dim]=tempbeta0[dim]-radiusbeta0[dim];
@@ -471,10 +471,10 @@ extern "C" {
        if (runif(0.0,1.0)<prob*valuecurrentbeta){
           tempbeta[0]=runif(lowercurrentbeta[0],uppercurrentbeta[0]);
           tempbeta[1]=runif(lowercurrentbeta[1],uppercurrentbeta[1]);
-          double desproposebeta;
-          double descurrentbeta;
-          desproposebeta=dmvnorm(tempbeta,tmp_p2,tmp_pp,p);
-          descurrentbeta=dmvnorm(beta,tmp_p2,tmp_pp,p);
+          double desproposebeta = 1.0;
+          double descurrentbeta = 1.0;
+          // desproposebeta=dmvnorm(tempbeta,tmp_p2,tmp_pp,p);
+          // descurrentbeta=dmvnorm(beta,tmp_p2,tmp_pp,p);
 
            for (int dim=0; dim<p; dim++){
 

@@ -100,7 +100,7 @@ double pmvnorm(int dim, double *lower, double *upper, double *mean, double *chol
 
 }
 
-double dmvnorm(double *xval, double *mu, double*cholCov, int dim){
+double dmvnorm(double *xval, double *mu, double *cholCov, int dim){
   double *xvalmu = (double *) R_alloc(dim, sizeof(double));
   int inc = 1;
   double one = 1.0;
