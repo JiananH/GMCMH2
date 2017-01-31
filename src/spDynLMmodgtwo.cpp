@@ -670,38 +670,46 @@ extern "C" {
        double radiustausq=REAL(radiustausq_r)[0];
        double temptausq;
        int acceptmarktausq=0;
+       double valuecurrenttausq=pgamma(1/(theta[t*nTheta+tauSqIndx]+radiustausq),tauSqIG[t*2]+n/2.0,1.0/(tauSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n, &incOne)),1,0)-pgamma(1/(theta[t*nTheta+tauSqIndx]-radiustausq),tauSqIG[t*2]+n/2.0,1.0/(tauSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n, &incOne)),1,0);
 
-       //printf("%f,\n",radiustausq);
-       do {
+
+       if (runif(0.0,1.0)<prob*valuecurrenttausq){
+
+        double lowercurrenttausq=theta[t*nTheta+tauSqIndx]-radiustausq;
+        double uppercurrenttausq=theta[t*nTheta+tauSqIndx]+radiustausq;
+
+        temptausq=runif(lowercurrenttausq,uppercurrenttausq);
+        double valueproposetausq=pgamma(1/(temptausq+radiustausq),tauSqIG[t*2]+n/2.0,1.0/(tauSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n, &incOne)),1,0)-pgamma(1/(temptausq-radiustausq),tauSqIG[t*2]+n/2.0,1.0/(tauSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n, &incOne)),1,0);
+
+        double accept_prob_tausq1=dgamma(temptausq,tauSqIG[t*2]+n/2.0,1.0/(tauSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n, &incOne)),0)/dgamma(theta[t*nTheta+tauSqIndx],tauSqIG[t*2]+n/2.0,1.0/(tauSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n, &incOne)),0)*valueproposetausq/valuecurrenttausq;
+
+        if (runif(0.0,1.0)<accept_prob_tausq1){
+          theta[t*nTheta+tauSqIndx] = temptausq;
+        }
+
+       } else {
+         do {
 
          temptausq=1.0/rgamma(tauSqIG[t*2]+n/2.0,1.0/(tauSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n, &incOne)));
+
             if (((temptausq-theta[t*nTheta+tauSqIndx])*(temptausq-theta[t*nTheta+tauSqIndx]))>(radiustausq*radiustausq)){
-              acceptmarktausq=2;
-            } else {
-              if (runif(0.0,1.0)<prob){
-                acceptmarktausq=1;
-              } else{
-                acceptmarktausq=0;
-              }
+              acceptmarktausq=1;
+            } else{
+              acceptmarktausq=0;
             }
 
        }  while(acceptmarktausq==0);
 
-       if (acceptmarktausq==1){
-        theta[t*nTheta+tauSqIndx] = temptausq;
-       } else {
-        double valueproposetausq=pgamma(1/(temptausq+radiustausq),tauSqIG[t*2]+n/2.0,1.0/(tauSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n, &incOne)),1,0)-pgamma(1/(temptausq-radiustausq),tauSqIG[t*2]+n/2.0,1.0/(tauSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n, &incOne)),1,0);
-        double valuecurrenttausq=pgamma(1/(theta[t*nTheta+tauSqIndx]+radiustausq),tauSqIG[t*2]+n/2.0,1.0/(tauSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n, &incOne)),1,0)-pgamma(1/(theta[t*nTheta+tauSqIndx]-radiustausq),tauSqIG[t*2]+n/2.0,1.0/(tauSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n, &incOne)),1,0);
-        double accept_prob_tausq=(1-prob*valueproposetausq)/(1-valueproposetausq)*(1-valuecurrenttausq)/(1-prob*valuecurrenttausq);
-            if (accept_prob_tausq>=1) {
-              accept_prob_tausq=1;
+       double valueproposetausq=pgamma(1/(temptausq+radiustausq),tauSqIG[t*2]+n/2.0,1.0/(tauSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n, &incOne)),1,0)-pgamma(1/(temptausq-radiustausq),tauSqIG[t*2]+n/2.0,1.0/(tauSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n, &incOne)),1,0);
+
+       double accept_prob_tausq2=(1-prob*valueproposetausq)/(1-valueproposetausq)*(1-valuecurrenttausq)/(1-prob*valuecurrenttausq);
+            if (accept_prob_tausq2>=1) {
+              accept_prob_tausq2=1;
             }
-            if (runif(0.0,1.0)<accept_prob_tausq){
+            if (runif(0.0,1.0)<accept_prob_tausq2){
               theta[t*nTheta+tauSqIndx] = temptausq;
             }
        }
-
-       //theta[t*nTheta+tauSqIndx] = temptausq;
 
        /************/
 
@@ -723,42 +731,49 @@ extern "C" {
 
 
        /************/
-
-       //double radiussigmasq=0.0586;
-       //double radiussigmasq=0.1490;
-       //double radiussigmasq=0.2466*2;
        double radiussigmasq=REAL(radiussigmasq_r)[0];
        double tempsigmasq;
        int acceptmarksigmasq=0;
 
-       //printf("%f,\n",radiussigmasq);
+       double valuecurrentsigmasq=pgamma(1/(theta[t*nTheta+tauSqIndx]+radiustausq),sigmaSqIG[t*2]+n/2.0, 1.0/(sigmaSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n2, &incOne)*theta[t*nTheta+sigmaSqIndx]),1,0)-pgamma(1/(theta[t*nTheta+tauSqIndx]-radiustausq),sigmaSqIG[t*2]+n/2.0, 1.0/(sigmaSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n2, &incOne)*theta[t*nTheta+sigmaSqIndx]),1,0);
 
-       do {
+
+       if (runif(0.0,1.0)<prob*valuecurrentsigmasq){
+
+        double lowercurrentsigmasq=theta[t*nTheta+sigmaSqIndx]-radiussigmasq;
+        double uppercurrentsigmasq=theta[t*nTheta+sigmaSqIndx]+radiussigmasq;
+
+        tempsigmasq=runif(lowercurrentsigmasq,uppercurrentsigmasq);
+
+        double valueproposesigmasq=pgamma(1/(tempsigmasq+radiussigmasq),sigmaSqIG[t*2]+n/2.0, 1.0/(sigmaSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n2, &incOne)*theta[t*nTheta+sigmaSqIndx]),1,0)-pgamma(1/(temptausq-radiustausq),sigmaSqIG[t*2]+n/2.0, 1.0/(sigmaSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n2, &incOne)*theta[t*nTheta+sigmaSqIndx]),1,0);
+
+        double accept_prob_sigmasq1=dgamma(tempsigmasq,sigmaSqIG[t*2]+n/2.0, 1.0/(sigmaSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n2, &incOne)*theta[t*nTheta+sigmaSqIndx]),0)/dgamma(theta[t*nTheta+sigmaSqIndx],sigmaSqIG[t*2]+n/2.0, 1.0/(sigmaSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n2, &incOne)*theta[t*nTheta+sigmaSqIndx]),0)*valueproposesigmasq/valuecurrentsigmasq;
+
+        if (runif(0.0,1.0)<accept_prob_sigmasq1){
+          theta[t*nTheta+sigmaSqIndx] = tempsigmasq;
+        }
+       } else {
+         do {
          tempsigmasq=1.0/rgamma(sigmaSqIG[t*2]+n/2.0, 1.0/(sigmaSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n2, &incOne)*theta[t*nTheta+sigmaSqIndx]));
             if (((tempsigmasq-theta[t*nTheta+sigmaSqIndx])*(tempsigmasq-theta[t*nTheta+sigmaSqIndx]))>(radiussigmasq*radiussigmasq)){
-              acceptmarksigmasq=2;
-            } else {
-              if (runif(0.0,1.0)<prob){
-                acceptmarksigmasq=1;
-              } else{
+              acceptmarksigmasq=1;
+            } else{
                 acceptmarksigmasq=0;
               }
-            }
-       }  while(acceptmarksigmasq==0);
 
-       if (acceptmarksigmasq==1){
-        theta[t*nTheta+sigmaSqIndx] = tempsigmasq;
-       } else {
+       }  while(acceptmarksigmasq==0);
         double valueproposesigmasq=pgamma(1/(tempsigmasq+radiussigmasq),sigmaSqIG[t*2]+n/2.0, 1.0/(sigmaSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n2, &incOne)*theta[t*nTheta+sigmaSqIndx]),1,0)-pgamma(1/(temptausq-radiustausq),sigmaSqIG[t*2]+n/2.0, 1.0/(sigmaSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n2, &incOne)*theta[t*nTheta+sigmaSqIndx]),1,0);
-        double valuecurrentsigmasq=pgamma(1/(theta[t*nTheta+tauSqIndx]+radiustausq),sigmaSqIG[t*2]+n/2.0, 1.0/(sigmaSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n2, &incOne)*theta[t*nTheta+sigmaSqIndx]),1,0)-pgamma(1/(theta[t*nTheta+tauSqIndx]-radiustausq),sigmaSqIG[t*2]+n/2.0, 1.0/(sigmaSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n2, &incOne)*theta[t*nTheta+sigmaSqIndx]),1,0);
-        double accept_prob_sigmasq=(1-prob*valueproposesigmasq)/(1-valueproposesigmasq)*(1-valuecurrentsigmasq)/(1-prob*valuecurrentsigmasq);
-            if (accept_prob_sigmasq>=1) {
-              accept_prob_sigmasq=1;
+
+        double accept_prob_sigmasq2=(1-prob*valueproposesigmasq)/(1-valueproposesigmasq)*(1-valuecurrentsigmasq)/(1-prob*valuecurrentsigmasq);
+            if (accept_prob_sigmasq2>=1) {
+              accept_prob_sigmasq2=1;
             }
-            if (runif(0.0,1.0)<accept_prob_sigmasq){
+            if (runif(0.0,1.0)<accept_prob_sigmasq2){
               theta[t*nTheta+sigmaSqIndx] = tempsigmasq;
             }
        }
+
+
 
        //theta[t*nTheta+sigmaSqIndx] = tempsigmasq;
 
