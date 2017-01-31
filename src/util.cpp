@@ -112,9 +112,9 @@ double dmvnorm(double *xval, double *mu, double *cholCov, int dim){
   //printVec(xvalmu,dim);
   F77_NAME(dtrmv)("L", "N", "N", &dim, cholCov, &dim, xvalmu, &inc);
   //printVec(xvalmu,dim);
-  F77_NAME(dgemm)("T", "N", &dim, &dim, &inc, &one, xvalmu, &dim, xvalmu, &dim, &zero, &des, &dim);
-  
-  desval=exp(des[0]);
+  F77_NAME(dgemm)("T", "N", &dim, &dim, &inc, &one, xvalmu, &dim, xvalmu, &dim, &zero, des, &dim);
+
+  double desval=exp(des[0]);
   return desval;
 }
 
