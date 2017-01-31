@@ -105,7 +105,7 @@ double dmvnorm(double *xval, double *mu, double *cholCov, int dim){
   int inc = 1;
   double one = 1.0;
   double zero = 0.0;
-  double des;
+  double *des = (double *) R_alloc(dim, sizeof(double));
   for(int i = 0; i < dim; i++){
     xvalmu[i] = xval[i] - mu[i];
   }
@@ -113,7 +113,9 @@ double dmvnorm(double *xval, double *mu, double *cholCov, int dim){
   F77_NAME(dtrmv)("L", "N", "N", &dim, cholCov, &dim, xvalmu, &inc);
   //printVec(xvalmu,dim);
   F77_NAME(dgemm)("T", "N", &dim, &dim, &inc, &one, xvalmu, &dim, xvalmu, &dim, &zero, &des, &dim);
-  return des;
+  
+  desval=exp(des[0]);
+  return desval;
 }
 
 void mvrnorm(double *des, double *mu, double *cholCov, int dim){
