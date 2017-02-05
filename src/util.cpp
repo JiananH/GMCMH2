@@ -7,7 +7,7 @@
 #include <R_ext/Utils.h>
 #include "util.h"
 
-double pmvnorm(int dim, double *lower, double *upper, double *mean, double *cholCov){
+double pmvnorm(int dim, double *lowerinput, double *upperinput, double *mean, double *cholCov){
 
   double alpha = 2.5;
   double eps=0.001;
@@ -15,10 +15,12 @@ double pmvnorm(int dim, double *lower, double *upper, double *mean, double *chol
 
   // Rprintf("\tPMVNORM LOWER BEFORE:"); printVec(lower,dim);
   // Rprintf("\tPMVNORM UPPER BEFORE:"); printVec(upper,dim);
+  double *lower = (double *) R_alloc(dim, sizeof(double));
+  double *upper = (double *) R_alloc(dim, sizeof(double));
 
   for (int i=0;i<dim;i++){
-    lower[i]=lower[i]-mean[i];
-    upper[i]=upper[i]-mean[i];
+    lower[i]=lowerinput[i]-mean[i];
+    upper[i]=upperinput[i]-mean[i];
   }
   // // compute the scaled lower and upper bound
   // F77_NAME(daxpy)(&dim, &negone, mean, &inc, lower, &inc);
@@ -100,6 +102,21 @@ double pmvnorm(int dim, double *lower, double *upper, double *mean, double *chol
 
 }
 
+// double dmvnorm(double *xval, double *mu, double *cholCov, int dim){
+//   double *xvalmu = (double *) R_alloc(dim, sizeof(double));
+//   int inc = 1;
+//   double one = 1.0;
+//   double zero = 0.0;
+//   double des;
+//   for(int i = 0; i < dim; i++){
+//     xvalmu[i] = xval[i] - mu[i];
+//   }
+//   //printVec(xvalmu,dim);
+//   F77_NAME(dtrmv)("L", "N", "N", &dim, cholCov, &dim, xvalmu, &inc);
+//   //printVec(xvalmu,dim);
+//   F77_NAME(dgemm)("T", "N", &dim, &dim, &inc, &one, xvalmu, &dim, xvalmu, &dim, &zero, &des, &dim);
+//   return des;
+// }
 double dmvnorm(double *xval, double *mu, double *cholCov, int dim){
   double *xvalmu = (double *) R_alloc(dim, sizeof(double));
   int inc = 1;
@@ -109,12 +126,16 @@ double dmvnorm(double *xval, double *mu, double *cholCov, int dim){
   for(int i = 0; i < dim; i++){
     xvalmu[i] = xval[i] - mu[i];
   }
-  //printVec(xvalmu,dim);
+  // Rprintf("\t xval"); printVec(xval,dim);
+  // Rprintf("\t mu"); printVec(mu,dim);
+  // Rprintf("\t xvalmu"); printVec(xvalmu,dim);
+  // Rprintf("\t cholCov"); printMtrx(cholCov,dim,dim);
   F77_NAME(dtrmv)("L", "N", "N", &dim, cholCov, &dim, xvalmu, &inc);
-  //printVec(xvalmu,dim);
+  // Rprintf("\t cholCov*xvalmu"); printVec(xvalmu,dim);
   F77_NAME(dgemm)("T", "N", &dim, &dim, &inc, &one, xvalmu, &dim, xvalmu, &dim, &zero, des, &dim);
+  // Rprintf("\t des"); printVec(des,dim);
 
-  double desval=exp(des[0]);
+  double desval=exp(-0.5*des[0]);
   return desval;
 }
 
