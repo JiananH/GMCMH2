@@ -318,7 +318,11 @@ extern "C" {
            valuepropose=pmvnorm(nop,lowerpropose,upperpropose,tmp_p2,tmp_pp);
 
            double accept_prob=despropose/descurrent*valuepropose/valuecurrent;
-          
+           // Rprintf("\t despropose for beta0 %.5f",despropose);
+           // Rprintf("\t descurrent for beta0 %.5f",descurrent);
+           // Rprintf("\t valuepropose for beta0 %.5f",valuepropose);
+           // Rprintf("\t valuecurrent for beta0 %.5f",valuecurrent);
+           // Rprintf("\n acceptance probability for beta0 %.5f \n",accept_prob);
            if(runif(0.0,1.0)<accept_prob){
             beta0[0]=tempbeta0[0];
             beta0[1]=tempbeta0[1];
@@ -466,10 +470,14 @@ extern "C" {
           }
           int nop=2;
           double valuecurrentbeta=0.0;
-          
+          // Rprintf("Before---------------------------------------------\n");
+          // Rprintf("\n lowercurrentbeta for beta"); printVec(lowercurrentbeta,p);
+          // Rprintf("\n uppercurrentbeta for beta"); printVec(uppercurrentbeta,p);
           valuecurrentbeta=pmvnorm(nop,lowercurrentbeta,uppercurrentbeta,tmp_p2,tmp_pp);
 
-          
+          // Rprintf("\n lowercurrentbeta for beta"); printVec(lowercurrentbeta,p);
+          // Rprintf("\n uppercurrentbeta for beta"); printVec(uppercurrentbeta,p);
+          // Rprintf("After---------------------------------------------\n");
 
        if (runif(0.0,1.0)<prob*valuecurrentbeta){
           tempbeta[0]=runif(lowercurrentbeta[0],uppercurrentbeta[0]);
@@ -490,11 +498,21 @@ extern "C" {
           }
 
           double valueproposebeta=0.0;
-        
+          // Rprintf("\n tempbeta");printVec(tempbeta,p);
+          // Rprintf("\n lowerproposebeta for beta"); printVec(lowerproposebeta,p);
+          // Rprintf("\n upperproposebeta for beta"); printVec(upperproposebeta,p);
+          // // Rprintf("\n beta");printVec(beta,p);
+          // Rprintf("\n lowercurrentbeta for beta"); printVec(lowercurrentbeta,p);
+          // Rprintf("\n uppercurrentbeta for beta"); printVec(uppercurrentbeta,p);
           valueproposebeta=pmvnorm(nop,lowerproposebeta,upperproposebeta,tmp_p2,tmp_pp);
 
+
+           // Rprintf("\t despropose for beta %.5f",desproposebeta);
+           // Rprintf("\t descurrent for beta %.5f",descurrentbeta);
+           // Rprintf("\t valuepropose for beta %.5f",valueproposebeta);
+           // Rprintf("\t valuecurrent for beta %.5f",valuecurrentbeta);
            double accept_prob_beta1=desproposebeta/descurrentbeta*valueproposebeta/valuecurrentbeta;
-           
+           // Rprintf("\n acceptance probability for beta %.5f \n",accept_prob_beta1);
             if (runif(0.0,1.0)<accept_prob_beta1){
            beta[t*p]=tempbeta[0];
            beta[t*p+1]=tempbeta[1];
@@ -687,7 +705,7 @@ extern "C" {
         double lowercurrenttausq=theta[t*nTheta+tauSqIndx]-radiustausq;
         double uppercurrenttausq=theta[t*nTheta+tauSqIndx]+radiustausq;
 
-        temptausq=runif(lowercurrenttausq,uppercurrenttausq);
+        temptausq=1.0/runif(lowercurrenttausq,uppercurrenttausq);
         double valueproposetausq=pgamma(1/(temptausq+radiustausq),tauSqIG[t*2]+n/2.0,1.0/(tauSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n, &incOne)),1,0)-pgamma(1/(temptausq-radiustausq),tauSqIG[t*2]+n/2.0,1.0/(tauSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n, &incOne)),1,0);
 
         double accept_prob_tausq1=dgamma(temptausq,tauSqIG[t*2]+n/2.0,1.0/(tauSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n, &incOne)),0)/dgamma(theta[t*nTheta+tauSqIndx],tauSqIG[t*2]+n/2.0,1.0/(tauSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n, &incOne)),0)*valueproposetausq/valuecurrenttausq;
@@ -752,7 +770,7 @@ extern "C" {
         double lowercurrentsigmasq=theta[t*nTheta+sigmaSqIndx]-radiussigmasq;
         double uppercurrentsigmasq=theta[t*nTheta+sigmaSqIndx]+radiussigmasq;
 
-        tempsigmasq=runif(lowercurrentsigmasq,uppercurrentsigmasq);
+        tempsigmasq=1.0/runif(lowercurrentsigmasq,uppercurrentsigmasq);
 
         double valueproposesigmasq=pgamma(1/(tempsigmasq+radiussigmasq),sigmaSqIG[t*2]+n/2.0, 1.0/(sigmaSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n2, &incOne)*theta[t*nTheta+sigmaSqIndx]),1,0)-pgamma(1/(temptausq-radiustausq),sigmaSqIG[t*2]+n/2.0, 1.0/(sigmaSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n2, &incOne)*theta[t*nTheta+sigmaSqIndx]),1,0);
 
