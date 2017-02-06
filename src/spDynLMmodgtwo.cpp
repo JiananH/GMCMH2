@@ -697,7 +697,7 @@ extern "C" {
        double radiustausq=REAL(radiustausq_r)[0];
        double temptausq;
        int acceptmarktausq=0;
-       double valuecurrenttausq=pgamma(1/(theta[t*nTheta+tauSqIndx]+radiustausq),tauSqIG[t*2]+n/2.0,1.0/(tauSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n, &incOne)),1,0)-pgamma(1/(theta[t*nTheta+tauSqIndx]-radiustausq),tauSqIG[t*2]+n/2.0,1.0/(tauSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n, &incOne)),1,0);
+       double valuecurrenttausq=pgamma(1.0/(theta[t*nTheta+tauSqIndx]+radiustausq),tauSqIG[t*2]+n/2.0,1.0/(tauSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n, &incOne)),1,0)-pgamma(1.0/(theta[t*nTheta+tauSqIndx]-radiustausq),tauSqIG[t*2]+n/2.0,1.0/(tauSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n, &incOne)),1,0);
 
 
        if (runif(0.0,1.0)<prob*valuecurrenttausq){
@@ -705,10 +705,10 @@ extern "C" {
         double lowercurrenttausq=theta[t*nTheta+tauSqIndx]-radiustausq;
         double uppercurrenttausq=theta[t*nTheta+tauSqIndx]+radiustausq;
 
-        temptausq=1.0/runif(lowercurrenttausq,uppercurrenttausq);
-        double valueproposetausq=pgamma(1/(temptausq+radiustausq),tauSqIG[t*2]+n/2.0,1.0/(tauSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n, &incOne)),1,0)-pgamma(1/(temptausq-radiustausq),tauSqIG[t*2]+n/2.0,1.0/(tauSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n, &incOne)),1,0);
+        temptausq=runif(lowercurrenttausq,uppercurrenttausq);
+        double valueproposetausq1=pgamma(1.0/(temptausq+radiustausq),tauSqIG[t*2]+n/2.0,1.0/(tauSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n, &incOne)),1,0)-pgamma(1.0/(temptausq-radiustausq),tauSqIG[t*2]+n/2.0,1.0/(tauSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n, &incOne)),1,0);
 
-        double accept_prob_tausq1=dgamma(temptausq,tauSqIG[t*2]+n/2.0,1.0/(tauSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n, &incOne)),0)/dgamma(theta[t*nTheta+tauSqIndx],tauSqIG[t*2]+n/2.0,1.0/(tauSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n, &incOne)),0)*valueproposetausq/valuecurrenttausq;
+        double accept_prob_tausq1=dgamma(1.0/temptausq,tauSqIG[t*2]+n/2.0,1.0/(tauSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n, &incOne)),0)/dgamma(1.0/theta[t*nTheta+tauSqIndx],tauSqIG[t*2]+n/2.0,1.0/(tauSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n, &incOne)),0)*valueproposetausq1/valuecurrenttausq;
 
         if (runif(0.0,1.0)<accept_prob_tausq1){
           theta[t*nTheta+tauSqIndx] = temptausq;
@@ -727,11 +727,11 @@ extern "C" {
 
        }  while(acceptmarktausq==0);
 
-       double valueproposetausq=pgamma(1/(temptausq+radiustausq),tauSqIG[t*2]+n/2.0,1.0/(tauSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n, &incOne)),1,0)-pgamma(1/(temptausq-radiustausq),tauSqIG[t*2]+n/2.0,1.0/(tauSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n, &incOne)),1,0);
+       double valueproposetausq2=pgamma(1.0/(temptausq+radiustausq),tauSqIG[t*2]+n/2.0,1.0/(tauSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n, &incOne)),1,0)-pgamma(1.0/(temptausq-radiustausq),tauSqIG[t*2]+n/2.0,1.0/(tauSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n, &incOne)),1,0);
 
-       double accept_prob_tausq2=(1-prob*valueproposetausq)/(1-valueproposetausq)*(1-valuecurrenttausq)/(1-prob*valuecurrenttausq);
-            if (accept_prob_tausq2>=1) {
-              accept_prob_tausq2=1;
+       double accept_prob_tausq2=(1.0-prob*valueproposetausq2)/(1.0-valueproposetausq2)*(1.0-valuecurrenttausq)/(1.0-prob*valuecurrenttausq);
+            if (accept_prob_tausq2>=1.0) {
+              accept_prob_tausq2=1.0;
             }
             if (runif(0.0,1.0)<accept_prob_tausq2){
               theta[t*nTheta+tauSqIndx] = temptausq;
@@ -762,7 +762,7 @@ extern "C" {
        double tempsigmasq;
        int acceptmarksigmasq=0;
 
-       double valuecurrentsigmasq=pgamma(1/(theta[t*nTheta+tauSqIndx]+radiustausq),sigmaSqIG[t*2]+n/2.0, 1.0/(sigmaSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n2, &incOne)*theta[t*nTheta+sigmaSqIndx]),1,0)-pgamma(1/(theta[t*nTheta+tauSqIndx]-radiustausq),sigmaSqIG[t*2]+n/2.0, 1.0/(sigmaSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n2, &incOne)*theta[t*nTheta+sigmaSqIndx]),1,0);
+       double valuecurrentsigmasq=pgamma(1.0/(theta[t*nTheta+tauSqIndx]+radiustausq),sigmaSqIG[t*2]+n/2.0, 1.0/(sigmaSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n2, &incOne)*theta[t*nTheta+sigmaSqIndx]),1,0)-pgamma(1.0/(theta[t*nTheta+tauSqIndx]-radiustausq),sigmaSqIG[t*2]+n/2.0, 1.0/(sigmaSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n2, &incOne)*theta[t*nTheta+sigmaSqIndx]),1,0);
 
 
        if (runif(0.0,1.0)<prob*valuecurrentsigmasq){
@@ -770,11 +770,11 @@ extern "C" {
         double lowercurrentsigmasq=theta[t*nTheta+sigmaSqIndx]-radiussigmasq;
         double uppercurrentsigmasq=theta[t*nTheta+sigmaSqIndx]+radiussigmasq;
 
-        tempsigmasq=1.0/runif(lowercurrentsigmasq,uppercurrentsigmasq);
+        tempsigmasq=runif(lowercurrentsigmasq,uppercurrentsigmasq);
 
-        double valueproposesigmasq=pgamma(1/(tempsigmasq+radiussigmasq),sigmaSqIG[t*2]+n/2.0, 1.0/(sigmaSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n2, &incOne)*theta[t*nTheta+sigmaSqIndx]),1,0)-pgamma(1/(temptausq-radiustausq),sigmaSqIG[t*2]+n/2.0, 1.0/(sigmaSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n2, &incOne)*theta[t*nTheta+sigmaSqIndx]),1,0);
+        double valueproposesigmasq1=pgamma(1.0/(tempsigmasq+radiussigmasq),sigmaSqIG[t*2]+n/2.0, 1.0/(sigmaSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n2, &incOne)*theta[t*nTheta+sigmaSqIndx]),1,0)-pgamma(1.0/(temptausq-radiustausq),sigmaSqIG[t*2]+n/2.0, 1.0/(sigmaSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n2, &incOne)*theta[t*nTheta+sigmaSqIndx]),1,0);
 
-        double accept_prob_sigmasq1=dgamma(tempsigmasq,sigmaSqIG[t*2]+n/2.0, 1.0/(sigmaSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n2, &incOne)*theta[t*nTheta+sigmaSqIndx]),0)/dgamma(theta[t*nTheta+sigmaSqIndx],sigmaSqIG[t*2]+n/2.0, 1.0/(sigmaSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n2, &incOne)*theta[t*nTheta+sigmaSqIndx]),0)*valueproposesigmasq/valuecurrentsigmasq;
+        double accept_prob_sigmasq1=dgamma(1.0/tempsigmasq,sigmaSqIG[t*2]+n/2.0, 1.0/(sigmaSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n2, &incOne)*theta[t*nTheta+sigmaSqIndx]),0)/dgamma(1.0/theta[t*nTheta+sigmaSqIndx],sigmaSqIG[t*2]+n/2.0, 1.0/(sigmaSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n2, &incOne)*theta[t*nTheta+sigmaSqIndx]),0)*valueproposesigmasq1/valuecurrentsigmasq;
 
         if (runif(0.0,1.0)<accept_prob_sigmasq1){
           theta[t*nTheta+sigmaSqIndx] = tempsigmasq;
@@ -789,11 +789,11 @@ extern "C" {
               }
 
        }  while(acceptmarksigmasq==0);
-        double valueproposesigmasq=pgamma(1/(tempsigmasq+radiussigmasq),sigmaSqIG[t*2]+n/2.0, 1.0/(sigmaSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n2, &incOne)*theta[t*nTheta+sigmaSqIndx]),1,0)-pgamma(1/(temptausq-radiustausq),sigmaSqIG[t*2]+n/2.0, 1.0/(sigmaSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n2, &incOne)*theta[t*nTheta+sigmaSqIndx]),1,0);
+        double valueproposesigmasq2=pgamma(1.0/(tempsigmasq+radiussigmasq),sigmaSqIG[t*2]+n/2.0, 1.0/(sigmaSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n2, &incOne)*theta[t*nTheta+sigmaSqIndx]),1,0)-pgamma(1.0/(temptausq-radiustausq),sigmaSqIG[t*2]+n/2.0, 1.0/(sigmaSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n2, &incOne)*theta[t*nTheta+sigmaSqIndx]),1,0);
 
-        double accept_prob_sigmasq2=(1-prob*valueproposesigmasq)/(1-valueproposesigmasq)*(1-valuecurrentsigmasq)/(1-prob*valuecurrentsigmasq);
-            if (accept_prob_sigmasq2>=1) {
-              accept_prob_sigmasq2=1;
+        double accept_prob_sigmasq2=(1.0-prob*valueproposesigmasq2)/(1.0-valueproposesigmasq2)*(1.0-valuecurrentsigmasq)/(1.0-prob*valuecurrentsigmasq);
+            if (accept_prob_sigmasq2>=1.0) {
+              accept_prob_sigmasq2=1.0;
             }
             if (runif(0.0,1.0)<accept_prob_sigmasq2){
               theta[t*nTheta+sigmaSqIndx] = tempsigmasq;
