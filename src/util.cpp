@@ -117,32 +117,49 @@ double pmvnorm(int dim, double *lowerinput, double *upperinput, double *mean, do
 //   F77_NAME(dgemm)("T", "N", &dim, &dim, &inc, &one, xvalmu, &dim, xvalmu, &dim, &zero, &des, &dim);
 //   return des;
 // }
-double dmvnorm(double *xval, double *mu, double *cholCov, int dim){
+double dmvnorm(double *xval, double *mu, double *Cov, int dim){
   char const *lower = "L";
   double *xvalmu = (double *) R_alloc(dim, sizeof(double));
-  double *cholCovinv = (double *) R_alloc(dim*dim, sizeof(double));
+  double *xvalmu1 = (double *) R_alloc(dim, sizeof(double));
+  double *Sigmainv = (double *) R_alloc(dim*dim, sizeof(double));
   int info = 0;
-  for(int i = 0; i < dim*dim; i++){
-    cholCovinv[i]=cholCov[i];
-  }
-
-  //compute the inverse of the Sigma_mu^{1/2}
-  F77_NAME(dpotrf)(lower, &dim, cholCovinv, &dim, &info);
-  F77_NAME(dpotri)(lower, &dim, cholCovinv, &dim, &info);
   int inc = 1;
   double one = 1.0;
   double zero = 0.0;
+
+  for(int i = 0; i < dim*dim; i++){
+    Sigmainv[i]=Cov[i];
+  }
+  // Rprintf("Before---------------------------------------------\n");
+  // //Sigma_mu=L%*%t(L)
+
+  // Rprintf("\n Sigma"); printMtrx(Sigmainv,dim,dim);
+
+  //compute the inverse of the Sigma_mu
+  F77_NAME(dpotrf)(lower, &dim, Sigmainv, &dim, &info);
+  F77_NAME(dpotri)(lower, &dim, Sigmainv, &dim, &info);
+  // Rprintf("\n Sigmainv"); printMtrx(Sigmainv,dim,dim);
+
   double *des = (double *) R_alloc(dim, sizeof(double));
   for(int i = 0; i < dim; i++){
     xvalmu[i] = xval[i] - mu[i];
   }
+  for(int i = 0; i < dim; i++){
+    xvalmu1[i] = xval[i] - mu[i];
+  }
   // Rprintf("\t xval"); printVec(xval,dim);
   // Rprintf("\t mu"); printVec(mu,dim);
-  // Rprintf("\t xvalmu"); printVec(xvalmu,dim);
+
+  // Rprintf("\n xvalmu"); printVec(xvalmu,dim);
   // Rprintf("\t cholCov"); printMtrx(cholCov,dim,dim);
-  F77_NAME(dtrmv)("L", "N", "N", &dim, cholCovinv, &dim, xvalmu, &inc);
-  // Rprintf("\t cholCov*xvalmu"); printVec(xvalmu,dim);
-  F77_NAME(dgemm)("T", "N", &dim, &dim, &inc, &one, xvalmu, &dim, xvalmu, &dim, &zero, des, &dim);
+  F77_NAME(dtrmv)("L", "T", "N", &dim, Sigmainv, &dim, xvalmu, &inc);
+  // Rprintf("\n xvalmu"); printVec(xvalmu,dim);
+  // F77_NAME(dtrmv)("L", "T", "N", &dim, xvalmu, &dim, xvalmu1, &inc);
+  F77_NAME(dgemm)("T", "N", &dim, &dim, &inc, &one, xvalmu, &dim, xvalmu1, &dim, &zero, des, &dim);
+  // Rprintf("\n des"); printVec(des,dim);
+  //  Rprintf("End Before---------------------------------------------\n");
+  // // Rprintf("\t cholCov*xvalmu"); printVec(xvalmu,dim);
+  // F77_NAME(dgemm)("T", "N", &dim, &dim, &inc, &one, xvalmu, &dim, xvalmu, &dim, &zero, des, &dim);
   // Rprintf("\t des"); printVec(des,dim);
 
   double desval=exp(-0.5*des[0]);
