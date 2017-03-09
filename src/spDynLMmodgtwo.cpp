@@ -382,7 +382,6 @@ extern "C" {
         }
     }
 
-
        /************/
 
      F77_NAME(dcopy)(&p, beta0, &incOne, &beta0Samples[s*p], &incOne);
@@ -414,24 +413,25 @@ extern "C" {
        //update B_t
        ////////////////////
        //Sigma_Beta_t
-      // Rprintf("\ttmp_pp:"); printVec(tmp_pp,pp);
-      // Rprintf("\tsigmaEta:"); printVec(sigmaEta,pp);
+       // Rprintf("Beta%i -------------------------------------------\n",t);
+       // Rprintf("\ntmp_pp:"); printMtrx(tmp_pp,p,p);
+       // Rprintf("\nsigmaEta:"); printMtrx(sigmaEta,p,p);
        F77_NAME(dcopy)(&pp, sigmaEta, &incOne, tmp_pp, &incOne);
        // Rprintf("\ttmp_pp:"); printVec(tmp_pp,pp);
        if(t < (Nt-1)){
-   F77_NAME(dscal)(&pp, &two, tmp_pp, &incOne);
+        F77_NAME(dscal)(&pp, &two, tmp_pp, &incOne);
        }
-       // Rprintf("\ttmp_pp:"); printVec(tmp_pp,pp);
+       // Rprintf("\ncopy sigmaEta tmp_pp:"); printMtrx(tmp_pp,p,p);
 
        tmp = 1.0/theta[t*nTheta+tauSqIndx];
        F77_NAME(daxpy)(&pp, &tmp, &XX[t*pp], &incOne, tmp_pp, &incOne);
-       // Rprintf("\ttmp_pp:"); printVec(tmp_pp,pp);
+       // Rprintf("\nadding XX tmp_pp:"); printMtrx(tmp_pp,p,p);
 
        F77_NAME(dpotrf)(lower, &p, tmp_pp, &p, &info); if(info != 0){error("c++ error: dpotrf4 failed\n");}
        F77_NAME(dpotri)(lower, &p, tmp_pp, &p, &info); if(info != 0){error("c++ error: dpotri failed\n");}
 
-       // Rprintf("\ttmp_pp:"); printVec(tmp_pp,pp);
-
+       // Rprintf("\tinversed tmp_pp:"); printVec(tmp_pp,pp);
+       // Rprintf("\ninversed tmp_pp:"); printMtrx(tmp_pp,p,p);
 
        //mu_Beta_t
        for(i = 0; i < n; i++){
@@ -454,7 +454,7 @@ extern "C" {
        F77_NAME(dsymv)(lower, &p, &one, sigmaEta, &p, tmp_p2, &incOne, &one, tmp_p, &incOne);
        F77_NAME(dsymv)(lower, &p, &one, tmp_pp, &p, tmp_p, &incOne, &zero, tmp_p2, &incOne);
 
-      //  Rprintf("Beta%i -------------------------------------------\n",s);
+      
       // Rprintf("\n covariance matrix tmp_pp:"); printMtrx(tmp_pp,p,p);
       F77_NAME(dcopy)(&pp, tmp_pp, &incOne, tmp_pppp, &incOne);
       // Rprintf("\n covariance matrix tmp_pppp:"); printMtrx(tmp_pppp,p,p);
@@ -467,6 +467,7 @@ extern "C" {
        //mvrnorm(&beta[t*p], tmp_p2, tmp_pp, p);
       double *radiusbeta=REAL(radiusbeta_r);
       double *tempbeta = (double *) R_alloc(p, sizeof(double));
+      double *currentbeta = (double *) R_alloc(p, sizeof(double));
 
       double *lowercurrentbeta = (double *) R_alloc(p, sizeof(double));
       double *uppercurrentbeta = (double *) R_alloc(p, sizeof(double));
@@ -474,6 +475,7 @@ extern "C" {
       double *upperproposebeta = (double *) R_alloc(p, sizeof(double));
 
       for (int dim=0; dim<p; dim++){
+            currentbeta[dim]=beta[t*p+dim];
             lowercurrentbeta[dim]=beta[t*p+dim]-radiusbeta[dim];
             uppercurrentbeta[dim]=beta[t*p+dim]+radiusbeta[dim];
           }
@@ -496,7 +498,7 @@ extern "C" {
           // Rprintf("\n tmp_p2 for beta"); printVec(tmp_p2,p);
           // Rprintf("\n tmp_pp for beta"); printMtrx(tmp_pp,p,p);
           desproposebeta=dmvnorm(tempbeta,tmp_p2,tmp_pppp,p);
-          descurrentbeta=dmvnorm(beta,tmp_p2,tmp_pppp,p);
+          descurrentbeta=dmvnorm(currentbeta,tmp_p2,tmp_pppp,p);
           // Rprintf("\n tmp_p2 for beta"); printVec(tmp_p2,p);
           // Rprintf("\n tmp_pp for beta"); printMtrx(tmp_pp,p,p);
 
@@ -516,10 +518,10 @@ extern "C" {
           valueproposebeta=pmvnorm(nop,lowerproposebeta,upperproposebeta,tmp_p2,tmp_pp);
 
 
-           // Rprintf("\t despropose for beta %.5f",desproposebeta);
-           // Rprintf("\t descurrent for beta %.5f",descurrentbeta);
-           // Rprintf("\t valuepropose for beta %.5f",valueproposebeta);
-           // Rprintf("\t valuecurrent for beta %.5f",valuecurrentbeta);
+           // Rprintf("\n despropose for beta %.5f",desproposebeta);
+           // Rprintf("\n descurrent for beta %.5f",descurrentbeta);
+           // Rprintf("\n valuepropose for beta %.5f",valueproposebeta);
+           // Rprintf("\n valuecurrent for beta %.5f",valuecurrentbeta);
            double accept_prob_beta1=desproposebeta/descurrentbeta*valueproposebeta/valuecurrentbeta;
            // Rprintf("\n acceptance probability for beta %.5f \n",accept_prob_beta1);
             if (runif(0.0,1.0)<accept_prob_beta1){

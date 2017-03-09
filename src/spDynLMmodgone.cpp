@@ -424,12 +424,7 @@ extern "C" {
               // Rprintf("Accepted\n");
             	beta0[0]=tempbeta0[0];
         		  beta0[1]=tempbeta0[1];
-            } else {
-              // Rprintf("Not Accepted\n");
-            }
-            // printVec(tempbeta0,p);
-            // printVec(beta0,p);
-       // acceptance=1;
+            } 
        }
     }
 
@@ -599,6 +594,8 @@ extern "C" {
               beta[t*p+1]=tempbeta[1];
             } 
        }
+
+
 
        /************/
 
