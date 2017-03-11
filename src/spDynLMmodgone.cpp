@@ -143,6 +143,12 @@ extern "C" {
     double *u = (double *) R_alloc(Ntn, sizeof(double)); zeros(u, Ntn);
     double *sigmaEta = (double *) R_alloc(pp, sizeof(double));
 
+    double *drawbeta = (double *) R_alloc(Nt, sizeof(double));
+    double *acceptbeta = (double *) R_alloc(Nt, sizeof(double));
+
+    double *drawtheta = (double *) R_alloc(NtnTheta, sizeof(double));
+    double *accepttheta = (double *) R_alloc(NtnTheta, sizeof(double));
+
     //starting
     for(i = 0; i < Nt; i++){
 
@@ -190,6 +196,24 @@ extern "C" {
     double *uSamples = REAL(uSamples_r);
     double *sigmaEtaSamples = REAL(sigmaEtaSamples_r);
     double *ySamples = NULL;
+
+    SEXP beta0DrawSamples_r, betaDrawSamples_r, thetaDrawSamples_r, beta0AcceptSamples_r, betaAcceptSamples_r, thetaAcceptSamples_r;
+
+    PROTECT(beta0DrawSamples_r = allocMatrix(REALSXP, 1, nSamples)); nProtect++;
+    PROTECT(betaDrawSamples_r = allocMatrix(REALSXP, Nt, nSamples)); nProtect++;
+    PROTECT(thetaDrawSamples_r = allocMatrix(REALSXP, nTheta*Nt, nSamples)); nProtect++;
+
+    PROTECT(beta0AcceptSamples_r = allocMatrix(REALSXP, 1, nSamples)); nProtect++;
+    PROTECT(betaAcceptSamples_r = allocMatrix(REALSXP, Nt, nSamples)); nProtect++;
+    PROTECT(thetaAcceptSamples_r = allocMatrix(REALSXP, nTheta*Nt, nSamples)); nProtect++;
+
+    double *thetaDrawSamples = REAL(thetaDrawSamples_r);
+    double *beta0DrawSamples = REAL(beta0DrawSamples_r);
+    double *betaDrawSamples = REAL(betaDrawSamples_r);
+
+    double *thetaAcceptSamples = REAL(thetaAcceptSamples_r);
+    double *beta0AcceptSamples = REAL(beta0AcceptSamples_r);
+    double *betaAcceptSamples = REAL(betaAcceptSamples_r);
 
     if(getFitted){
       PROTECT(ySamples_r = allocMatrix(REALSXP, n*Nt, nSamples)); nProtect++;
@@ -283,6 +307,9 @@ extern "C" {
 
      // /************/
      //mvrnorm(&beta[t*p], tmp_p2, tmp_pp, p);
+     double drawbeta0=0.0;
+     double acceptbeta0=0.0;
+
      if (s==0){
       mvrnorm(beta0, tmp_p2, tmp_pp, p);
      } else {
@@ -293,20 +320,15 @@ extern "C" {
        int sumbeta0=0;
        int acceptindicator=0;
 
-       //propose a new value
-       // Rprintf("-------------------------------------------------\n");
-       // Rprintf("iteration: %i \n",s);
-       // Rprintf("Proposing a value\n");
+
        do {
-        // Rprintf("starting proposing-------------------------------------\n");
-        // Rprintf("\tmean vector tmp_p2:"); printVec(tmp_p2,p);
-        // Rprintf("\tsqrt of covariance matrix tmp_pp:"); printVec(tmp_pp,pp);
+        drawbeta0=drawbeta0+1.0;
 
         mvrnorm(tempbeta0, tmp_p2, tmp_pp, p);
 
 
          for (int dim=0; dim<p; dim++){
-           //tempbeta0[dim]=1.0;
+
            acceptmarkbeta0[dim]=0;
          }
           for (int dim=0; dim<p; dim++){
@@ -320,7 +342,6 @@ extern "C" {
             for (int dim=0; dim<p; dim++){
               sumbeta0+=acceptmarkbeta0[dim];
             }
-         //printf("%f,%f,%d\n",tempbeta0[0],tempbeta0[1],sumbeta0);
 
          if (sumbeta0==0 && runif(0.0,1.0)<prob){
               acceptindicator=1;
@@ -330,27 +351,15 @@ extern "C" {
               acceptindicator=0;
             }
 
-            // Rprintf("%i %i \n",sumbeta0, acceptindicator);
        }while(acceptindicator==0);
-        // beta0[0]=tempbeta0[0];
-        // beta0[1]=tempbeta0[1];
-
-       // Rprintf("accept or not------------------------------------------\n");
-       // Rprintf("\tcurrent value:"); printVec(beta0,p);
-       // Rprintf("\tproposed value:"); printVec(tempbeta0,p);
-
-
-       // printf("%f \n", prob);
 
        //compare with acceptance probability
        if (acceptindicator==1){
+        acceptbeta0=1.0;
         beta0[0]=tempbeta0[0];
         beta0[1]=tempbeta0[1];
-        // Rprintf("Middle\n");
+
        } else {
-        // beta0[0]=tempbeta0[0];
-        // beta0[1]=tempbeta0[1];
-        // Rprintf("Out \n");
 
         double *lowercurrent = (double *) R_alloc(p, sizeof(double));
         double *uppercurrent = (double *) R_alloc(p, sizeof(double));
@@ -368,63 +377,21 @@ extern "C" {
             double valuecurrent=0.0;
             double valuepropose=0.0;
 
-            // Rprintf("-------------------------------------------------\n");
-            // Rprintf("mvrnorm\n");
-            // Rprintf("\tradius vector:"); printVec(radiusbeta0,p);
-            // Rprintf("\tmean vector:"); printVec(tmp_p2,p);
-            // Rprintf("\tproposed vector:"); printVec(tempbeta0,p);
-            // Rprintf("\tproposed vector lower:"); printVec(lowerpropose,p);
-            // Rprintf("\tproposed vector upper:"); printVec(upperpropose,p);
-            // Rprintf("proposed prob %f \n \n", valuepropose);
-
-            // //printf("proposed prob %f \n", valuepropose);
-            // Rprintf("-------------------------------------------------\n");
-            // Rprintf("\tradius vector:"); printVec(radiusbeta0,p);
-            // Rprintf("\tmean vector:"); printVec(tmp_p2,p);
-            // Rprintf("\tcurrent vector:"); printVec(beta0,p);
-            // Rprintf("\tcurrent vector lower:"); printVec(lowercurrent,p);
-            // Rprintf("\tcurrent vector upper:"); printVec(uppercurrent,p);
-
             valuecurrent=pmvnorm(nop,lowercurrent,uppercurrent,tmp_p2,tmp_pp);
             valuepropose=pmvnorm(nop,lowerpropose,upperpropose,tmp_p2,tmp_pp);
 
-            //  Rprintf("after--------------------------------------------\n");
-            // // Rprintf("\ttmp_ppp:"); printVec(tmp_pp,pp);
-            // Rprintf("\ttmp_pp:"); printVec(tmp_pp,pp);
-            // Rprintf("\ttmp_p2:"); printVec(tmp_p2,p);
-
-            // Rprintf("-------------------------------------------------\n");
-            // Rprintf("mvrnorm\n");
-            // Rprintf("\tradius vector:"); printVec(radiusbeta0,p);
-            // Rprintf("\tmean vector:"); printVec(tmp_p2,p);
-            // Rprintf("\tproposed vector:"); printVec(tempbeta0,p);
-            // Rprintf("\tproposed vector lower:"); printVec(lowerpropose,p);
-            // Rprintf("\tproposed vector upper:"); printVec(upperpropose,p);
-            // Rprintf("proposed prob %f \n \n", valuepropose);
-
-            // //printf("proposed prob %f \n", valuepropose);
-            // Rprintf("-------------------------------------------------\n");
-            // Rprintf("\tradius vector:"); printVec(radiusbeta0,p);
-            // Rprintf("\tmean vector:"); printVec(tmp_p2,p);
-            // Rprintf("\tcurrent vector:"); printVec(beta0,p);
-            // Rprintf("\tcurrent vector lower:"); printVec(lowercurrent,p);
-            // Rprintf("\tcurrent vector upper:"); printVec(uppercurrent,p);
-            // //printf("current prob %f \n", valuecurrent);
-            // Rprintf("current prob %f \n \n", valuecurrent);
             double accept_prob=(1-prob*valuepropose)/(1-valuepropose)*(1-valuecurrent)/(1-prob*valuecurrent);
             if (accept_prob>=1) {
-              accept_prob=1;
+              accept_prob=1.0;
             }
-        //     Rprintf("-------------------------------------------------\n");
-        //     Rprintf("determine whether or not to accept the proposed value\n");
 
-            //accept_prob=1;
-            // Rprintf("alpha: %f \n \n", accept_prob);
             if (runif(0.0,1.0)<accept_prob){
-              // Rprintf("Accepted\n");
+              acceptbeta0=1;
             	beta0[0]=tempbeta0[0];
         		  beta0[1]=tempbeta0[1];
-            } 
+            } else {
+              acceptbeta0=0.0;
+            }
        }
     }
 
@@ -432,6 +399,8 @@ extern "C" {
        /************/
 
      F77_NAME(dcopy)(&p, beta0, &incOne, &beta0Samples[s*p], &incOne);
+     beta0DrawSamples[s]=drawbeta0;
+     beta0AcceptSamples[s]=acceptbeta0;
 
      ////////////////////
      //update y_t
@@ -512,9 +481,11 @@ extern "C" {
        int *acceptmarkbeta = (int *) R_alloc(p, sizeof(int));
        int sumbeta=0;
        int acceptindicator=0;
-       //printf("%f,%f,\n",radiusbeta[0],radiusbeta[1]);
+       drawbeta[t]=0.0;
+
 
        do {
+        drawbeta[t]=drawbeta[t]+1.0;
         mvrnorm(tempbeta, tmp_p2, tmp_pp, p);
          for (int dim=0; dim<p; dim++){
            acceptmarkbeta[dim]=0;
@@ -542,6 +513,7 @@ extern "C" {
        }while(acceptindicator==0);
 
        if (acceptindicator==1){
+        acceptbeta[t]=1.0;
         beta[t*p]=tempbeta[0];
         beta[t*p+1]=tempbeta[1];
         // Rprintf("-------------------Middle------------------\n");
@@ -592,7 +564,10 @@ extern "C" {
               // Rprintf("Accepted\n");
               beta[t*p]=tempbeta[0];
               beta[t*p+1]=tempbeta[1];
-            } 
+              acceptbeta[t]=1.0;
+            } else {
+              acceptbeta[t]=0.0;
+            }
        }
 
 
@@ -729,10 +704,11 @@ extern "C" {
        double radiustausq=REAL(radiustausq_r)[0];
        double temptausq;
        int acceptmarktausq=0;
+       drawtheta[t*nTheta+tauSqIndx] = 0.0;
 
        //printf("%f,\n",radiustausq);
        do {
-
+         drawtheta[t*nTheta+tauSqIndx] = drawtheta[t*nTheta+tauSqIndx] + 1.0;
          temptausq=1.0/rgamma(tauSqIG[t*2]+n/2.0,1.0/(tauSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n, &incOne)));
             if (((temptausq-theta[t*nTheta+tauSqIndx])*(temptausq-theta[t*nTheta+tauSqIndx]))>(radiustausq*radiustausq)){
               acceptmarktausq=2;
@@ -747,16 +723,20 @@ extern "C" {
        }  while(acceptmarktausq==0);
 
        if (acceptmarktausq==1){
+        accepttheta[t*nTheta+tauSqIndx] = 1.0;
        	theta[t*nTheta+tauSqIndx] = temptausq;
        } else {
-       	double valueproposetausq=pgamma(1/(temptausq+radiustausq),tauSqIG[t*2]+n/2.0,1.0/(tauSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n, &incOne)),1,0)-pgamma(1/(temptausq-radiustausq),tauSqIG[t*2]+n/2.0,1.0/(tauSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n, &incOne)),1,0);
-       	double valuecurrenttausq=pgamma(1/(theta[t*nTheta+tauSqIndx]+radiustausq),tauSqIG[t*2]+n/2.0,1.0/(tauSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n, &incOne)),1,0)-pgamma(1/(theta[t*nTheta+tauSqIndx]-radiustausq),tauSqIG[t*2]+n/2.0,1.0/(tauSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n, &incOne)),1,0);
-        double accept_prob_tausq=(1-prob*valueproposetausq)/(1-valueproposetausq)*(1-valuecurrenttausq)/(1-prob*valuecurrenttausq);
+       	double valueproposetausq = pgamma(1/(temptausq+radiustausq),tauSqIG[t*2]+n/2.0,1.0/(tauSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n, &incOne)),1,0)-pgamma(1/(temptausq-radiustausq),tauSqIG[t*2]+n/2.0,1.0/(tauSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n, &incOne)),1,0);
+       	double valuecurrenttausq = pgamma(1/(theta[t*nTheta+tauSqIndx]+radiustausq),tauSqIG[t*2]+n/2.0,1.0/(tauSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n, &incOne)),1,0)-pgamma(1/(theta[t*nTheta+tauSqIndx]-radiustausq),tauSqIG[t*2]+n/2.0,1.0/(tauSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n, &incOne)),1,0);
+        double accept_prob_tausq = (1-prob*valueproposetausq)/(1-valueproposetausq)*(1-valuecurrenttausq)/(1-prob*valuecurrenttausq);
             if (accept_prob_tausq>=1) {
               accept_prob_tausq=1;
             }
-            if (runif(0.0,1.0)<accept_prob_tausq){
+            if (runif(0.0,1.0) < accept_prob_tausq){
               theta[t*nTheta+tauSqIndx] = temptausq;
+              accepttheta[t*nTheta+tauSqIndx] = 1.0;
+            } else {
+              accepttheta[t*nTheta+tauSqIndx] = 0.0;
             }
        }
 
@@ -789,10 +769,12 @@ extern "C" {
        double radiussigmasq=REAL(radiussigmasq_r)[0];
        double tempsigmasq;
        int acceptmarksigmasq=0;
+       drawtheta[t*nTheta+sigmaSqIndx] = 0.0;
 
        //printf("%f,\n",radiussigmasq);
 
        do {
+         drawtheta[t*nTheta+sigmaSqIndx] = drawtheta[t*nTheta+sigmaSqIndx] + 1.0;
          tempsigmasq=1.0/rgamma(sigmaSqIG[t*2]+n/2.0, 1.0/(sigmaSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n2, &incOne)*theta[t*nTheta+sigmaSqIndx]));
             if (((tempsigmasq-theta[t*nTheta+sigmaSqIndx])*(tempsigmasq-theta[t*nTheta+sigmaSqIndx]))>(radiussigmasq*radiussigmasq)){
               acceptmarksigmasq=2;
@@ -807,6 +789,7 @@ extern "C" {
 
        if (acceptmarksigmasq==1){
         theta[t*nTheta+sigmaSqIndx] = tempsigmasq;
+        accepttheta[t*nTheta+sigmaSqIndx] = 1.0;
        } else {
         double valueproposesigmasq=pgamma(1/(tempsigmasq+radiussigmasq),sigmaSqIG[t*2]+n/2.0, 1.0/(sigmaSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n2, &incOne)*theta[t*nTheta+sigmaSqIndx]),1,0)-pgamma(1/(temptausq-radiustausq),sigmaSqIG[t*2]+n/2.0, 1.0/(sigmaSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n2, &incOne)*theta[t*nTheta+sigmaSqIndx]),1,0);
         double valuecurrentsigmasq=pgamma(1/(theta[t*nTheta+tauSqIndx]+radiustausq),sigmaSqIG[t*2]+n/2.0, 1.0/(sigmaSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n2, &incOne)*theta[t*nTheta+sigmaSqIndx]),1,0)-pgamma(1/(theta[t*nTheta+tauSqIndx]-radiustausq),sigmaSqIG[t*2]+n/2.0, 1.0/(sigmaSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n2, &incOne)*theta[t*nTheta+sigmaSqIndx]),1,0);
@@ -816,6 +799,9 @@ extern "C" {
             }
             if (runif(0.0,1.0)<accept_prob_sigmasq){
               theta[t*nTheta+sigmaSqIndx] = tempsigmasq;
+              accepttheta[t*nTheta+sigmaSqIndx] = 1.0;
+            } else {
+              accepttheta[t*nTheta+sigmaSqIndx] = 0.0;
             }
        }
 
@@ -895,6 +881,7 @@ extern "C" {
        double radiusphi=REAL(radiusphi_r)[0];
        double tempphi;
        int acceptmarkphi=0;
+       drawtheta[t*nTheta+phiIndx] = 0.0;
 
        //printf("%f,\n",radiusphi);
 
@@ -930,6 +917,7 @@ extern "C" {
 
        //cand
        do{
+         drawtheta[t*nTheta+phiIndx] = drawtheta[t*nTheta+phiIndx] + 1.0;
          gamma[0] = theta[t*nTheta+sigmaSqIndx];
          gamma[1] = logitInv(rnorm(theta[t*nTheta+phiIndx], phiTuning[t]), phiUnif[t*2], phiUnif[t*2+1]);
 
@@ -967,7 +955,7 @@ extern "C" {
        }  while(acceptmarkphi==0);
 
        theta[t*nTheta+phiIndx] = tempphi;
-
+       accepttheta[t*nTheta+phiIndx] = 1.0;
 
 
 
@@ -995,6 +983,12 @@ extern "C" {
      F77_NAME(dcopy)(&Ntp, beta, &incOne, &betaSamples[s*Ntp], &incOne);
      F77_NAME(dcopy)(&Ntn, u, &incOne, &uSamples[s*Ntn], &incOne);
      F77_NAME(dcopy)(&NtnTheta, theta, &incOne, &thetaSamples[s*NtnTheta], &incOne);
+
+     F77_NAME(dcopy)(&Nt, drawbeta, &incOne, &betaDrawSamples[s*Nt], &incOne);
+     F77_NAME(dcopy)(&Nt, acceptbeta, &incOne, &betaAcceptSamples[s*Nt], &incOne);
+
+     F77_NAME(dcopy)(&NtnTheta, drawtheta, &incOne, &thetaDrawSamples[s*NtnTheta], &incOne);
+     F77_NAME(dcopy)(&NtnTheta, accepttheta, &incOne, &thetaAcceptSamples[s*NtnTheta], &incOne);
 
      //update Sigma_eta
      for(i = 0; i < p; i++){
@@ -1094,7 +1088,7 @@ extern "C" {
 
     // //make return object
     SEXP result_r, resultName_r;
-    int nResultListObjs = 5;
+    int nResultListObjs = 11;
     if(getFitted){
       nResultListObjs++;
     }
@@ -1118,10 +1112,30 @@ extern "C" {
     SET_VECTOR_ELT(result_r, 4, thetaSamples_r);
     SET_VECTOR_ELT(resultName_r, 4, mkChar("p.theta.samples"));
 
+    SET_VECTOR_ELT(result_r, 5, beta0DrawSamples_r);
+    SET_VECTOR_ELT(resultName_r, 5, mkChar("p.beta.0.draw"));
+
+    SET_VECTOR_ELT(result_r, 6, beta0AcceptSamples_r);
+    SET_VECTOR_ELT(resultName_r, 6, mkChar("p.beta.0.accept"));
+
+    SET_VECTOR_ELT(result_r, 7, betaDrawSamples_r);
+    SET_VECTOR_ELT(resultName_r, 7, mkChar("p.beta.draw"));
+
+    SET_VECTOR_ELT(result_r, 8, betaAcceptSamples_r);
+    SET_VECTOR_ELT(resultName_r, 8, mkChar("p.beta.accept"));
+
+    SET_VECTOR_ELT(result_r, 9, thetaDrawSamples_r);
+    SET_VECTOR_ELT(resultName_r, 9, mkChar("p.theta.draw"));
+
+    SET_VECTOR_ELT(result_r, 10, thetaAcceptSamples_r);
+    SET_VECTOR_ELT(resultName_r, 10, mkChar("p.theta.accept"));
+
     if(getFitted){
-      SET_VECTOR_ELT(result_r, 5, ySamples_r);
-      SET_VECTOR_ELT(resultName_r, 5, mkChar("p.y.samples"));
+      SET_VECTOR_ELT(result_r, 11, ySamples_r);
+      SET_VECTOR_ELT(resultName_r, 11, mkChar("p.y.samples"));
     }
+
+
 
     namesgets(result_r, resultName_r);
 

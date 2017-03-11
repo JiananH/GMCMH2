@@ -296,17 +296,29 @@ spDynLMmodgone <- function(formula, data = parent.frame(), coords, knots,
   run.time <- proc.time() - ptm
 
   out$p.beta.0.samples <- mcmc(t(out$p.beta.0.samples))
-  colnames(out$p.beta.0.samples) <- x.names
+  colnames(out$p.beta.0.samples) <- x.names 
+
+  out$p.beta.0.draw <- mcmc(t(out$p.beta.0.draw))
+  out$p.beta.0.accept <- mcmc(t(out$p.beta.0.accept))
   
   out$p.beta.samples <- mcmc(t(out$p.beta.samples))
   colnames(out$p.beta.samples) <- as.vector(t(sapply(paste(x.names,".t",sep=""),paste,1:N.t,sep="")))
+
+  out$p.beta.draw <- mcmc(t(out$p.beta.draw))
+  out$p.beta.accept <- mcmc(t(out$p.beta.accept))
   
   out$p.theta.samples <- mcmc(t(out$p.theta.samples))
+  out$p.theta.draw <- mcmc(t(out$p.theta.draw))
+  out$p.theta.accept <- mcmc(t(out$p.theta.accept))
   
   if(cov.model != "matern"){
     colnames(out$p.theta.samples) <- as.vector(t(sapply(paste(c("sigma.sq", "tau.sq", "phi"),".t",sep=""),paste,1:N.t,sep="")))
+    colnames(out$p.theta.draw) <- as.vector(t(sapply(paste(c("sigma.sq", "tau.sq", "phi"),".t",sep=""),paste,1:N.t,sep="")))
+    colnames(out$p.theta.accept) <- as.vector(t(sapply(paste(c("sigma.sq", "tau.sq", "phi"),".t",sep=""),paste,1:N.t,sep="")))
   }else{
     colnames(out$p.theta.samples) <- as.vector(t(sapply(paste(c("sigma.sq", "tau.sq", "phi", "nu"),".t",sep=""),paste,1:N.t,sep="")))
+    # colnames(out$p.theta.draw) <- as.vector(t(sapply(paste(c("sigma.sq", "tau.sq", "phi"),".t",sep=""),paste,1:N.t,sep="")))
+    # colnames(out$p.theta.accept) <- as.vector(t(sapply(paste(c("sigma.sq", "tau.sq", "phi"),".t",sep=""),paste,1:N.t,sep="")))
   }
 
   out$p.sigma.eta.samples <- mcmc(t(out$p.sigma.eta.samples))
