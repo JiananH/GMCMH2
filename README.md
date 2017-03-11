@@ -1,3 +1,3 @@
 install.packages("devtools")
 
-devtools::install_github("junebonnie/GMCMH2")
+devtools::install_github("JiananH/GMCMH2")
