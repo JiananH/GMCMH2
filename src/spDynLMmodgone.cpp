@@ -320,6 +320,7 @@ extern "C" {
        int sumbeta0=0;
        int acceptindicator=0;
 
+       double judge1=runif(0.0,1.0);
 
        do {
         drawbeta0=drawbeta0+1.0;
@@ -343,7 +344,7 @@ extern "C" {
               sumbeta0+=acceptmarkbeta0[dim];
             }
 
-         if (sumbeta0==0 && runif(0.0,1.0)<prob){
+         if (sumbeta0==0 && judge1<prob){
               acceptindicator=1;
             } else if(sumbeta0>=1){
               acceptindicator=2;
@@ -483,6 +484,7 @@ extern "C" {
        int acceptindicator=0;
        drawbeta[t]=0.0;
 
+       double judge2=runif(0.0,1.0);
 
        do {
         drawbeta[t]=drawbeta[t]+1.0;
@@ -502,7 +504,7 @@ extern "C" {
               sumbeta=sumbeta+acceptmarkbeta[dim];
             }
             //printf("%d,%d,%d\n",acceptmark[0],acceptmark[1],sum);
-            if (sumbeta==0 && runif(0.0,1.0)<prob){
+            if (sumbeta==0 && judge2<prob){
               acceptindicator=1;
             } else if(sumbeta>0){
               acceptindicator=2;
@@ -706,6 +708,7 @@ extern "C" {
        int acceptmarktausq=0;
        drawtheta[t*nTheta+tauSqIndx] = 0.0;
 
+       double judge3=runif(0.0,1.0);
        //printf("%f,\n",radiustausq);
        do {
          drawtheta[t*nTheta+tauSqIndx] = drawtheta[t*nTheta+tauSqIndx] + 1.0;
@@ -713,7 +716,7 @@ extern "C" {
             if (((temptausq-theta[t*nTheta+tauSqIndx])*(temptausq-theta[t*nTheta+tauSqIndx]))>(radiustausq*radiustausq)){
               acceptmarktausq=2;
             } else {
-              if (runif(0.0,1.0)<prob){
+              if (judge3<prob){
                 acceptmarktausq=1;
               } else{
                 acceptmarktausq=0;
@@ -772,14 +775,14 @@ extern "C" {
        drawtheta[t*nTheta+sigmaSqIndx] = 0.0;
 
        //printf("%f,\n",radiussigmasq);
-
+       double judge4=runif(0.0,1.0);
        do {
          drawtheta[t*nTheta+sigmaSqIndx] = drawtheta[t*nTheta+sigmaSqIndx] + 1.0;
          tempsigmasq=1.0/rgamma(sigmaSqIG[t*2]+n/2.0, 1.0/(sigmaSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n2, &incOne)*theta[t*nTheta+sigmaSqIndx]));
             if (((tempsigmasq-theta[t*nTheta+sigmaSqIndx])*(tempsigmasq-theta[t*nTheta+sigmaSqIndx]))>(radiussigmasq*radiussigmasq)){
               acceptmarksigmasq=2;
             } else {
-              if (runif(0.0,1.0)<prob){
+              if (judge4<prob){
                 acceptmarksigmasq=1;
               } else{
                 acceptmarksigmasq=0;
@@ -915,6 +918,7 @@ extern "C" {
          logPost += log(gamma[2] - nuUnif[t*2]) + log(nuUnif[t*2+1] - gamma[2]);
        }
 
+       double judge5=runif(0.0,1.0);
        //cand
        do{
          drawtheta[t*nTheta+phiIndx] = drawtheta[t*nTheta+phiIndx] + 1.0;
@@ -946,7 +950,7 @@ extern "C" {
               acceptmarkphi=1;
 
             } else {
-              if (runif(0.0,1.0)<prob){
+              if (judge5<prob){
                 acceptmarkphi=1;
               } else{
                 acceptmarkphi=0;
