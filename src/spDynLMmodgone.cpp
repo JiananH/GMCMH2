@@ -149,9 +149,6 @@ extern "C" {
     double *drawtheta = (double *) R_alloc(NtnTheta, sizeof(double));
     double *accepttheta = (double *) R_alloc(NtnTheta, sizeof(double));
 
-    double drawbeta0=0.0;
-    double acceptbeta0=0.0;
-
     //starting
     for(i = 0; i < Nt; i++){
 
@@ -269,350 +266,7 @@ extern "C" {
 
     GetRNGstate();
 
-    {
-
-      //Sigma_eta^{-1}
-      // Rprintf("\toriginal sigmaEta:"); printVec(sigmaEta,pp);
-      F77_NAME(dpotrf)(lower, &p, sigmaEta, &p, &info); if(info != 0){error("c++ error: dpotrf1 failed\n");}
-      // Rprintf("\tdpotrf sigmaEta:"); printVec(sigmaEta,pp);
-      F77_NAME(dpotri)(lower, &p, sigmaEta, &p, &info); if(info != 0){error("c++ error: dpotri failed\n");}
-      // Rprintf("\tdpotri sigmaEta:"); printVec(sigmaEta,pp);
-
-      //update Beta_0
-      // Rprintf("Iteration number \n \n", s);
-      // printMtrx(sigmaEta,p,p);
-      F77_NAME(dcopy)(&pp, sigmaEta, &incOne, tmp_pp, &incOne);
-      // Rprintf("\ttmp_pp:"); printVec(tmp_pp,pp);
-
-      // printMtrx(tmp_pp,p,p);
-      // Rprintf("-------------------------------------------------\n");
-      // Rprintf("\tsigma0:"); printVec(sigma0,pp);
-      F77_NAME(daxpy)(&pp, &one, sigma0, &incOne, tmp_pp, &incOne);
-
-      // Rprintf("\tadd sigma0 -1 to tmp_pp:"); printVec(tmp_pp,pp);
-      // printMtrx(sigma0,p,p);
-      // printMtrx(tmp_pp,p,p);
-      // Rprintf("-------------------------------------------------\n");
-
-      //Sigma_Beta0
-      F77_NAME(dpotrf)(lower, &p, tmp_pp, &p, &info); if(info != 0){error("c++ error: dpotrf2 failed\n");}
-      // printMtrx(tmp_pp,p,p);
-      F77_NAME(dpotri)(lower, &p, tmp_pp, &p, &info); if(info != 0){error("c++ error: dpotri failed\n");}
-      // printMtrx(tmp_pp,p,p);
-
-      //mu_Beta0
-      F77_NAME(dsymv)(lower, &p, &one, sigma0, &p, m0, &incOne, &zero, tmp_p, &incOne);
-      F77_NAME(dsymv)(lower, &p, &one, sigmaEta, &p, beta, &incOne, &one, tmp_p, &incOne);//first column of beta is Beta_1
-      F77_NAME(dsymv)(lower, &p, &one, tmp_pp, &p, tmp_p, &incOne, &zero, tmp_p2, &incOne);
-      // Rprintf("-------------------------------------------------\n");
-      // printMtrx(tmp_pp,p,p);
-      F77_NAME(dpotrf)(lower, &p, tmp_pp, &p, &info); if(info != 0){error("c++ error: dpotrf3 failed\n");}
-
-      // Rprintf("-------------------------------------------------\n");
-      // printMtrx(tmp_pp,p,p);
-      // Rprintf("\ttmp_pp:"); printVec(tmp_pp,pp);
-      mvrnorm(beta0, tmp_p2, tmp_pp, p);
-
-      F77_NAME(dcopy)(&p, beta0, &incOne, &beta0Samples[s*p], &incOne);
-
-      ////////////////////
-      //update y_t
-      ////////////////////
-      if(anyMissing || getFitted){
-        for(t = 0, j = 0; t < Nt; t++){
-          F77_NAME(dgemv)(ytran, &p, &n, &one, &X[t*n*p], &p, &beta[t*p], &incOne, &zero, tmp_n3, &incOne);
-          for(i = 0; i < n; i++, j++){
-            if(missing[j] == 1){
-              Y[n*t+i] = rnorm(tmp_n3[i] + u[n*t+i], sqrt(theta[t*nTheta+tauSqIndx]));
-              if(getFitted){
-                ySamples[s*Ntn+t*n+i] = Y[n*t+i];
-              }
-            }else{
-              if(getFitted){
-                ySamples[s*Ntn+t*n+i] = rnorm(tmp_n3[i] + u[n*t+i], sqrt(theta[t*nTheta+tauSqIndx]));
-              }
-            }
-          }
-        }
-      }
-      // Rprintf("Beta---------------------------------------------\n");
-      for(t = 0; t < Nt; t++){
-
-        ////////////////////
-        //update B_t
-        ////////////////////
-        //Sigma_Beta_t
-        // Rprintf("beta %i ------------------------------------------\n", t);
-        // Rprintf("\toriginal tmp_pp:"); printVec(tmp_pp,pp);
-        F77_NAME(dcopy)(&pp, sigmaEta, &incOne, tmp_pp, &incOne);
-        // Rprintf("\tcopy sigmaEta to tmp_pp:"); printVec(tmp_pp,pp);
-        if(t < (Nt-1)){
-          F77_NAME(dscal)(&pp, &two, tmp_pp, &incOne);
-        }
-        // Rprintf("\t scales tmp_pp by two:"); printVec(tmp_pp,pp);
-
-        tmp = 1.0/theta[t*nTheta+tauSqIndx];
-        F77_NAME(daxpy)(&pp, &tmp, &XX[t*pp], &incOne, tmp_pp, &incOne);
-        // Rprintf("\t+XX tmp_pp:"); printVec(tmp_pp,pp);
-
-        F77_NAME(dpotrf)(lower, &p, tmp_pp, &p, &info); if(info != 0){error("c++ error: dpotrf4 failed\n");}
-        // Rprintf("\tdpotrf tmp_pp:"); printVec(tmp_pp,pp);
-        F77_NAME(dpotri)(lower, &p, tmp_pp, &p, &info); if(info != 0){error("c++ error: dpotri failed\n");}
-        // Rprintf("\tdpotri tmp_pp:"); printVec(tmp_pp,pp);
-
-        //mu_Beta_t
-        for(i = 0; i < n; i++){
-          tmp_n[i] = (Y[n*t+i] - u[n*t+i])*tmp;
-        }
-        F77_NAME(dgemv)(ntran, &p, &n, &one, &X[t*n*p], &p, tmp_n, &incOne, &zero, tmp_p, &incOne);
-
-        if(t == 0){
-          for(i = 0; i < p; i++){
-            tmp_p2[i] = beta0[i]+beta[p*(t+1)+i];
-          }
-        }if(t == (Nt-1)){
-          F77_NAME(dcopy)(&p, &beta[p*(t-1)], &incOne, tmp_p2, &incOne);
-        }else{
-          for(i = 0; i < p; i++){
-            tmp_p2[i] = beta[p*(t-1)+i]+beta[p*(t+1)+i];
-          }
-        }
-
-        F77_NAME(dsymv)(lower, &p, &one, sigmaEta, &p, tmp_p2, &incOne, &one, tmp_p, &incOne);
-        F77_NAME(dsymv)(lower, &p, &one, tmp_pp, &p, tmp_p, &incOne, &zero, tmp_p2, &incOne);
-        //printMtrx(tmp_pp,p,p);
-        F77_NAME(dpotrf)(lower, &p, tmp_pp, &p, &info); if(info != 0){error("c++ error: dpotrf5 failed\n");}
-        //printMtrx(tmp_pp,p,p);
-        mvrnorm(&beta[t*p], tmp_p2, tmp_pp, p);
-
-        ////////////////////
-        //update u_t
-        ////////////////////
-        gamma[0] = theta[t*nTheta+sigmaSqIndx];
-        gamma[1] = logitInv(theta[t*nTheta+phiIndx], phiUnif[t*2], phiUnif[t*2+1]);
-        if(covModel == "matern"){
-          gamma[2] = logitInv(theta[t*nTheta+nuIndx], nuUnif[t*2], nuUnif[t*2+1]);
-        }
-
-        spCovLT(coordsD, n, gamma, covModel, C);
-
-        F77_NAME(dpotrf)(lower, &n, C, &n, &info); if(info != 0){error("c++ error: dpotrf6 failed\n");}
-        F77_NAME(dpotri)(lower, &n, C, &n, &info); if(info != 0){error("c++ error: dpotri failed\n");}
-
-        F77_NAME(dgemv)(ytran, &p, &n, &one, &X[t*n*p], &p, &beta[t*p], &incOne, &zero, tmp_n3, &incOne);
-
-        if(t < (Nt-1)){
-
-          //t+1
-          gamma[0] = theta[(t+1)*nTheta+sigmaSqIndx];
-          gamma[1] = logitInv(theta[(t+1)*nTheta+phiIndx], phiUnif[(t+1)*2], phiUnif[(t+1)*2+1]);
-          if(covModel == "matern"){
-            gamma[2] = logitInv(theta[(t+1)*nTheta+nuIndx], nuUnif[(t+1)*2], nuUnif[(t+1)*2+1]);
-          }
-
-          spCovLT(coordsD, n, gamma, covModel, C2);
-
-          F77_NAME(dpotrf)(lower, &n, C2, &n, &info); if(info != 0){error("c++ error: dpotrf7 failed\n");}
-          F77_NAME(dpotri)(lower, &n, C2, &n, &info); if(info != 0){error("c++ error: dpotri failed\n");}
-
-          //mu
-          F77_NAME(dsymv)(lower, &n, &one, C2, &n, &u[(t+1)*n], &incOne, &zero, tmp_n, &incOne);
-
-          if(t > 0){
-            F77_NAME(dsymv)(lower, &n, &one, C, &n, &u[(t-1)*n], &incOne, &one, tmp_n, &incOne);
-          }
-
-          for(i = 0; i < n; i++){
-            tmp_n[i] += (Y[t*n+i] - tmp_n3[i])*tmp;
-          }
-
-          //sigma
-          F77_NAME(daxpy)(&nn, &one, C, &incOne, C2, &incOne);
-
-          for(i = 0; i < n; i++){
-            C2[i*n+i] += tmp;
-          }
-
-          F77_NAME(dpotrf)(lower, &n, C2, &n, &info); if(info != 0){error("c++ error: dpotrf8 failed\n");}
-          F77_NAME(dpotri)(lower, &n, C2, &n, &info); if(info != 0){error("c++ error: dpotri failed\n");}
-
-          //finish mu
-          F77_NAME(dsymv)(lower, &n, &one, C2, &n, tmp_n, &incOne, &zero, tmp_n2, &incOne);
-
-          F77_NAME(dpotrf)(lower, &n, C2, &n, &info); if(info != 0){error("c++ error: dpotrf9 failed\n");}
-          mvrnorm(&u[t*n], tmp_n2, C2, n);
-
-        }else{//t==Nt
-
-          F77_NAME(dcopy)(&nn, C, &incOne, C2, &incOne);
-
-          //mu
-          F77_NAME(dsymv)(lower, &n, &one, C2, &n, &u[(t-1)*n], &incOne, &zero, tmp_n, &incOne);
-
-          for(i = 0; i < n; i++){
-            tmp_n[i] += (Y[t*n+i] - tmp_n3[i])*tmp;
-          }
-
-          //sigma
-          for(i = 0; i < n; i++){
-            C2[i*n+i] += tmp;
-          }
-
-          F77_NAME(dpotrf)(lower, &n, C2, &n, &info); if(info != 0){error("c++ error: dpotrf10 failed\n");}
-          F77_NAME(dpotri)(lower, &n, C2, &n, &info); if(info != 0){error("c++ error: dpotri failed\n");}
-
-          //finish mu
-          F77_NAME(dsymv)(lower, &n, &one, C2, &n, tmp_n, &incOne, &zero, tmp_n2, &incOne);
-
-          F77_NAME(dpotrf)(lower, &n, C2, &n, &info); if(info != 0){error("c++ error: dpotrf11 failed\n");}
-          mvrnorm(&u[t*n], tmp_n2, C2, n);
-        }
-
-        ////////////////////
-        //update tau^2
-        ////////////////////
-        for(i = 0; i < n; i++){
-          tmp_n[i] = Y[t*n+i] - tmp_n3[i] - u[t*n+i];
-        }
-        theta[t*nTheta+tauSqIndx] = 1.0/rgamma(tauSqIG[t*2]+n/2.0,
-                                               1.0/(tauSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n, &incOne)));
-
-        ////////////////////
-        //update sigma^2
-        ////////////////////
-        F77_NAME(dcopy)(&n, &u[n*t], &incOne, tmp_n, &incOne);
-        if(t > 0){
-          for(i = 0; i < n; i++){
-            tmp_n[i] = tmp_n[i] - u[n*(t-1)+i];
-          }
-        }
-
-        F77_NAME(dsymv)(lower, &n, &one, C, &n, tmp_n, &incOne, &zero, tmp_n2, &incOne);
-
-        theta[t*nTheta+sigmaSqIndx] = 1.0/rgamma(sigmaSqIG[t*2]+n/2.0,
-                                                 1.0/(sigmaSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n2, &incOne)*theta[t*nTheta+sigmaSqIndx]));
-
-        ////////////////////
-        //update phi
-        ////////////////////
-        if(t > 0){
-          for(i = 0; i < n; i++){
-            tmp_n[i] = u[n*t+i]-u[n*(t-1)+i];
-          }
-        }else{
-          F77_NAME(dcopy)(&n, &u[n*t], &incOne, tmp_n, &incOne);
-        }
-
-        //current
-        gamma[0] = theta[t*nTheta+sigmaSqIndx];
-        gamma[1] = logitInv(theta[t*nTheta+phiIndx], phiUnif[t*2], phiUnif[t*2+1]);
-        if(covModel == "matern"){
-          gamma[2] = logitInv(theta[t*nTheta+nuIndx], nuUnif[t*2], nuUnif[t*2+1]);
-        }
-
-        spCovLT(coordsD, n, gamma, covModel, C);
-
-        logDet = 0;
-        F77_NAME(dpotrf)(lower, &n, C, &n, &info); if(info != 0){error("c++ error: dpotrf12 failed\n");}
-        for(i = 0; i < n; i++) logDet += 2*log(C[i*n+i]);
-        F77_NAME(dpotri)(lower, &n, C, &n, &info); if(info != 0){error("c++ error: dpotri failed\n");}
-
-        F77_NAME(dsymv)(lower, &n, &one, C, &n, tmp_n, &incOne, &zero, tmp_n2, &incOne);
-        logPost = -0.5*logDet-0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n2, &incOne);
-
-        logPost += log(gamma[1] - phiUnif[t*2]) + log(phiUnif[t*2+1] - gamma[1]);
-        if(covModel == "matern"){
-          logPost += log(gamma[2] - nuUnif[t*2]) + log(nuUnif[t*2+1] - gamma[2]);
-        }
-
-        //cand
-        gamma[0] = theta[t*nTheta+sigmaSqIndx];
-        gamma[1] = logitInv(rnorm(theta[t*nTheta+phiIndx], phiTuning[t]), phiUnif[t*2], phiUnif[t*2+1]);
-        if(covModel == "matern"){
-          gamma[2] = logitInv(rnorm(theta[t*nTheta+nuIndx], nuTuning[t]), nuUnif[t*2], nuUnif[t*2+1]);
-        }
-
-        spCovLT(coordsD, n, gamma, covModel, C);
-
-        logDetCand = 0;
-        F77_NAME(dpotrf)(lower, &n, C, &n, &info); if(info != 0){error("c++ error: dpotrf13 failed\n");}
-        for(i = 0; i < n; i++) logDetCand += 2*log(C[i*n+i]);
-        F77_NAME(dpotri)(lower, &n, C, &n, &info); if(info != 0){error("c++ error: dpotri failed\n");}
-
-        F77_NAME(dsymv)(lower, &n, &one, C, &n, tmp_n, &incOne, &zero, tmp_n2, &incOne);
-        logPostCand = -0.5*logDetCand-0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n2, &incOne);
-
-        logPostCand += log(gamma[1] - phiUnif[t*2]) + log(phiUnif[t*2+1] - gamma[1]);
-        if(covModel == "matern"){
-          logPostCand += log(gamma[2] - nuUnif[t*2]) + log(nuUnif[t*2+1] - gamma[2]);
-        }
-
-        logMHRatio = logPostCand - logPost;
-
-        if(runif(0.0,1.0) <= exp(logMHRatio)){
-          theta[t*nTheta+phiIndx] = logit(gamma[1], phiUnif[t*2], phiUnif[t*2+1]);
-          if(covModel == "matern"){
-            theta[t*nTheta+nuIndx] = logit(gamma[2], nuUnif[t*2], nuUnif[t*2+1]);
-          }
-          accept++;
-          batchAccept++;
-        }
-
-        R_CheckUserInterrupt();
-      }//end Nt
-
-      F77_NAME(dcopy)(&Ntp, beta, &incOne, &betaSamples[s*Ntp], &incOne);
-      F77_NAME(dcopy)(&Ntn, u, &incOne, &uSamples[s*Ntn], &incOne);
-      F77_NAME(dcopy)(&NtnTheta, theta, &incOne, &thetaSamples[s*NtnTheta], &incOne);
-
-      //update Sigma_eta
-      for(i = 0; i < p; i++){
-        tmp_p[i] = beta[i]-beta0[i];
-      }
-      F77_NAME(dgemm)(ntran, ytran, &p, &p, &incOne, &one, tmp_p, &p, tmp_p, &p, &zero, tmp_pp, &p);
-
-      for(t = 1; t < Nt; t++){
-        for(i = 0; i < p; i++){
-          tmp_p[i] = beta[p*t+i]-beta[p*(t-1)+i];
-        }
-        F77_NAME(dgemm)(ntran, ytran, &p, &p, &incOne, &one, tmp_p, &p, tmp_p, &p, &one, tmp_pp, &p);
-      }
-
-      F77_NAME(daxpy)(&pp, &one, SigmaEtaIW_S, &incOne, tmp_pp, &incOne);
-
-      rwish(tmp_pp, SigmaEtaIW_df+Nt, p, sigmaEta, tmp_pp2, 1);
-
-      // F77_NAME(dpotrf)(lower, &p, tmp_pp, &p, &info); if(info != 0){error("c++ error: dpotrf failed\n");}
-      // F77_NAME(dpotri)(lower, &p, tmp_pp, &p, &info); if(info != 0){error("c++ error: dpotri failed\n");}
-
-      // for(i = 1; i < p; i++){
-      //   for(j = 0; j < i; j++){
-      // 	 tmp_pp[i*p+j] = tmp_pp[j*p+i];
-      //   }
-      // }
-      // riwishart(tmp_pp, SigmaEtaIW_df+Nt, p, C, C2, C3, sigmaEta);
-
-      F77_NAME(dcopy)(&pp, sigmaEta, &incOne, &sigmaEtaSamples[s*pp], &incOne);
-
-      //report
-      if(verbose){
-        if(status == nReport){
-          Rprintf("Sampled: %i of %i, %3.2f%%\n", s, nSamples, 100.0*s/nSamples);
-          Rprintf("Report interval Mean Metrop. Acceptance rate: %3.2f%%\n", 100.0*batchAccept/(nReport*Nt));
-          Rprintf("Overall Metrop. Acceptance rate: %3.2f%%\n", 100.0*accept/(s*Nt));
-          Rprintf("-------------------------------------------------\n");
-#ifdef Win32
-          R_FlushConsole();
-#endif
-          status = 0;
-          batchAccept = 0;
-        }
-      }
-      status++;
-
-    }
-
-    for(s = 1; s < nSamples; s++){
+    for(s = 0; s < nSamples; s++){
 
       //Sigma_eta^{-1}
       F77_NAME(dpotrf)(lower, &p, sigmaEta, &p, &info); if(info != 0){error("c++ error: dpotrf1 failed\n");}
@@ -653,13 +307,13 @@ extern "C" {
 
      // /************/
      //mvrnorm(&beta[t*p], tmp_p2, tmp_pp, p);
+     double drawbeta0=0.0;
+     double acceptbeta0=0.0;
 
-     double mainjudge=runif(0.0,1.0);
+     if (s==0){
+      mvrnorm(beta0, tmp_p2, tmp_pp, p);
+     } else {
 
-     if (mainjudge<0.1428571){
-
-       drawbeta0=0.0;
-       acceptbeta0=0.0;
        double *radiusbeta0=REAL(radiusbeta0_r);
        double *tempbeta0 = (double *) R_alloc(p, sizeof(double));
        int *acceptmarkbeta0 = (int *) R_alloc(p, sizeof(int));
@@ -672,7 +326,10 @@ extern "C" {
         drawbeta0=drawbeta0+1.0;
 
         mvrnorm(tempbeta0, tmp_p2, tmp_pp, p);
+
+
          for (int dim=0; dim<p; dim++){
+
            acceptmarkbeta0[dim]=0;
          }
           for (int dim=0; dim<p; dim++){
@@ -737,7 +394,7 @@ extern "C" {
               acceptbeta0=0.0;
             }
        }
-
+    }
 
 
        /************/
@@ -745,26 +402,587 @@ extern "C" {
      F77_NAME(dcopy)(&p, beta0, &incOne, &beta0Samples[s*p], &incOne);
      beta0DrawSamples[s]=drawbeta0;
      beta0AcceptSamples[s]=acceptbeta0;
+
      ////////////////////
      //update y_t
      ////////////////////
      if(anyMissing || getFitted){
        for(t = 0, j = 0; t < Nt; t++){
-         F77_NAME(dgemv)(ytran, &p, &n, &one, &X[t*n*p], &p, &beta[t*p], &incOne, &zero, tmp_n3, &incOne);
-         for(i = 0; i < n; i++, j++){
-           if(missing[j] == 1){
-             Y[n*t+i] = rnorm(tmp_n3[i] + u[n*t+i], sqrt(theta[t*nTheta+tauSqIndx]));
-             if(getFitted){
-               ySamples[s*Ntn+t*n+i] = Y[n*t+i];
-             }
-           }else{
-             if(getFitted){
-               ySamples[s*Ntn+t*n+i] = rnorm(tmp_n3[i] + u[n*t+i], sqrt(theta[t*nTheta+tauSqIndx]));
-             }
-           }
-         }
+   F77_NAME(dgemv)(ytran, &p, &n, &one, &X[t*n*p], &p, &beta[t*p], &incOne, &zero, tmp_n3, &incOne);
+   for(i = 0; i < n; i++, j++){
+     if(missing[j] == 1){
+       Y[n*t+i] = rnorm(tmp_n3[i] + u[n*t+i], sqrt(theta[t*nTheta+tauSqIndx]));
+       if(getFitted){
+         ySamples[s*Ntn+t*n+i] = Y[n*t+i];
+       }
+     }else{
+       if(getFitted){
+         ySamples[s*Ntn+t*n+i] = rnorm(tmp_n3[i] + u[n*t+i], sqrt(theta[t*nTheta+tauSqIndx]));
        }
      }
+   }
+       }
+     }
+// Rprintf("Beta---------------------------------------------\n");
+     for(t = 0; t < Nt; t++){
+
+       ////////////////////
+       //update B_t
+       ////////////////////
+       //Sigma_Beta_t
+      // Rprintf("\ttmp_pp:"); printVec(tmp_pp,pp);
+      // Rprintf("\tsigmaEta:"); printVec(sigmaEta,pp);
+       F77_NAME(dcopy)(&pp, sigmaEta, &incOne, tmp_pp, &incOne);
+       // Rprintf("\ttmp_pp:"); printVec(tmp_pp,pp);
+       if(t < (Nt-1)){
+   F77_NAME(dscal)(&pp, &two, tmp_pp, &incOne);
+       }
+       // Rprintf("\ttmp_pp:"); printVec(tmp_pp,pp);
+
+       tmp = 1.0/theta[t*nTheta+tauSqIndx];
+       F77_NAME(daxpy)(&pp, &tmp, &XX[t*pp], &incOne, tmp_pp, &incOne);
+       // Rprintf("\ttmp_pp:"); printVec(tmp_pp,pp);
+
+       F77_NAME(dpotrf)(lower, &p, tmp_pp, &p, &info); if(info != 0){error("c++ error: dpotrf4 failed\n");}
+       F77_NAME(dpotri)(lower, &p, tmp_pp, &p, &info); if(info != 0){error("c++ error: dpotri failed\n");}
+
+       // Rprintf("\ttmp_pp:"); printVec(tmp_pp,pp);
+
+
+       //mu_Beta_t
+       for(i = 0; i < n; i++){
+   tmp_n[i] = (Y[n*t+i] - u[n*t+i])*tmp;
+       }
+       F77_NAME(dgemv)(ntran, &p, &n, &one, &X[t*n*p], &p, tmp_n, &incOne, &zero, tmp_p, &incOne);
+
+       if(t == 0){
+   for(i = 0; i < p; i++){
+     tmp_p2[i] = beta0[i]+beta[p*(t+1)+i];
+   }
+       }if(t == (Nt-1)){
+   F77_NAME(dcopy)(&p, &beta[p*(t-1)], &incOne, tmp_p2, &incOne);
+       }else{
+   for(i = 0; i < p; i++){
+     tmp_p2[i] = beta[p*(t-1)+i]+beta[p*(t+1)+i];
+   }
+       }
+
+       F77_NAME(dsymv)(lower, &p, &one, sigmaEta, &p, tmp_p2, &incOne, &one, tmp_p, &incOne);
+       F77_NAME(dsymv)(lower, &p, &one, tmp_pp, &p, tmp_p, &incOne, &zero, tmp_p2, &incOne);
+
+
+       F77_NAME(dpotrf)(lower, &p, tmp_pp, &p, &info); if(info != 0){error("c++ error: dpotrf5 failed\n");}
+       // Rprintf("\ttmp_pp:"); printVec(tmp_pp,pp);
+
+       /************/
+       //mvrnorm(&beta[t*p], tmp_p2, tmp_pp, p);
+
+       double *radiusbeta=REAL(radiusbeta_r);
+       double *tempbeta = (double *) R_alloc(p, sizeof(double));
+       int *acceptmarkbeta = (int *) R_alloc(p, sizeof(int));
+       int sumbeta=0;
+       int acceptindicator=0;
+       drawbeta[t]=0.0;
+
+       double judge2=runif(0.0,1.0);
+
+       do {
+        drawbeta[t]=drawbeta[t]+1.0;
+        mvrnorm(tempbeta, tmp_p2, tmp_pp, p);
+         for (int dim=0; dim<p; dim++){
+           acceptmarkbeta[dim]=0;
+         }
+          for (int dim=0; dim<p; dim++){
+            if (((tempbeta[dim]-beta[t*p+dim])*(tempbeta[dim]-beta[t*p+dim]))>(radiusbeta[dim]*radiusbeta[dim])){
+              acceptmarkbeta[dim]=1;
+            } else {
+              acceptmarkbeta[dim]=0;
+            }
+          }
+            sumbeta=0;
+            for (int dim=0; dim<p; dim++){
+              sumbeta=sumbeta+acceptmarkbeta[dim];
+            }
+            //printf("%d,%d,%d\n",acceptmark[0],acceptmark[1],sum);
+            if (sumbeta==0 && judge2<prob){
+              acceptindicator=1;
+            } else if(sumbeta>0){
+              acceptindicator=2;
+            } else {
+              acceptindicator=0;
+            }
+
+       }while(acceptindicator==0);
+
+       if (acceptindicator==1){
+        acceptbeta[t]=1.0;
+        beta[t*p]=tempbeta[0];
+        beta[t*p+1]=tempbeta[1];
+        // Rprintf("-------------------Middle------------------\n");
+       } else {
+        double *lowercurrentbeta = (double *) R_alloc(p, sizeof(double));
+        double *uppercurrentbeta = (double *) R_alloc(p, sizeof(double));
+        double *lowerproposebeta = (double *) R_alloc(p, sizeof(double));
+        double *upperproposebeta = (double *) R_alloc(p, sizeof(double));
+
+        for (int dim=0; dim<p; dim++){
+              lowercurrentbeta[dim]=beta[t*p+dim]-radiusbeta[dim];
+              uppercurrentbeta[dim]=beta[t*p+dim]+radiusbeta[dim];
+              lowerproposebeta[dim]=tempbeta[dim]-radiusbeta[dim];
+              upperproposebeta[dim]=tempbeta[dim]+radiusbeta[dim];
+
+            }
+            int nop=2;
+            double valuecurrentbeta=0.0;
+            double valueproposebeta=0.0;
+            // Rprintf("-------------------------------------------------\n");
+            // Rprintf("beta %i \n", t);
+            // Rprintf("\tradius vector:"); printVec(radiusbeta,p);
+            // Rprintf("\tmean vector:"); printVec(tmp_p2,p);
+            // Rprintf("\tcholcov:"); printVec(tmp_pp,pp);
+            // Rprintf("\tproposed vector:"); printVec(tempbeta,p);
+            // Rprintf("\tproposed vector lower:"); printVec(lowerproposebeta,p);
+            // Rprintf("\tproposed vector upper:"); printVec(upperproposebeta,p);
+            // Rprintf("-------------------------------------------------\n");
+            // Rprintf("\tcurrent vector:"); printVec(beta,p);
+            // Rprintf("\tcurrent vector lower:"); printVec(lowercurrentbeta,p);
+            // Rprintf("\tcurrent vector upper:"); printVec(uppercurrentbeta,p);
+
+            valueproposebeta=pmvnorm(nop,lowerproposebeta,upperproposebeta,tmp_p2,tmp_pp);
+            valuecurrentbeta=pmvnorm(nop,lowercurrentbeta,uppercurrentbeta,tmp_p2,tmp_pp);
+
+
+            // Rprintf("\n proposed prob %0.5f \n", valueproposebeta);
+            // Rprintf("current prob %0.5f \n", valuecurrentbeta);
+
+            double accept_prob_beta=(1-prob*valueproposebeta)/(1-valueproposebeta)*(1-valuecurrentbeta)/(1-prob*valuecurrentbeta);
+            if (accept_prob_beta>=1) {
+              accept_prob_beta=1;
+            }
+            // Rprintf("-------------------------------------------------\n");
+            // Rprintf("determine whether or not to accept the proposed value\n");
+            // Rprintf("alpha: %f \n \n", accept_prob_beta);
+            if (runif(0.0,1.0)<accept_prob_beta){
+              // Rprintf("Accepted\n");
+              beta[t*p]=tempbeta[0];
+              beta[t*p+1]=tempbeta[1];
+              acceptbeta[t]=1.0;
+            } else {
+              acceptbeta[t]=0.0;
+            }
+       }
+
+
+
+       /************/
+
+       ////////////////////
+       //update u_t
+       ////////////////////
+       gamma[0] = theta[t*nTheta+sigmaSqIndx];
+       gamma[1] = logitInv(theta[t*nTheta+phiIndx], phiUnif[t*2], phiUnif[t*2+1]);
+       if(covModel == "matern"){
+         gamma[2] = logitInv(theta[t*nTheta+nuIndx], nuUnif[t*2], nuUnif[t*2+1]);
+       }
+
+       spCovLT(coordsD, n, gamma, covModel, C);
+       //printf("%d,%d,\n",C[0],C[1]);
+
+       F77_NAME(dpotrf)(lower, &n, C, &n, &info); if(info != 0){error("c++ error: dpotrf6 failed\n");}
+       F77_NAME(dpotri)(lower, &n, C, &n, &info); if(info != 0){error("c++ error: dpotri failed\n");}
+
+       F77_NAME(dgemv)(ytran, &p, &n, &one, &X[t*n*p], &p, &beta[t*p], &incOne, &zero, tmp_n3, &incOne);
+
+       if(t < (Nt-1)){
+
+         //t+1
+         gamma[0] = theta[(t+1)*nTheta+sigmaSqIndx];
+         gamma[1] = logitInv(theta[(t+1)*nTheta+phiIndx], phiUnif[(t+1)*2], phiUnif[(t+1)*2+1]);
+         if(covModel == "matern"){
+           gamma[2] = logitInv(theta[(t+1)*nTheta+nuIndx], nuUnif[(t+1)*2], nuUnif[(t+1)*2+1]);
+         }
+
+         spCovLT(coordsD, n, gamma, covModel, C2);
+
+         F77_NAME(dpotrf)(lower, &n, C2, &n, &info); if(info != 0){error("c++ error: dpotrf7 failed\n");}
+         F77_NAME(dpotri)(lower, &n, C2, &n, &info); if(info != 0){error("c++ error: dpotri failed\n");}
+
+         //mu
+         F77_NAME(dsymv)(lower, &n, &one, C2, &n, &u[(t+1)*n], &incOne, &zero, tmp_n, &incOne);
+
+         if(t > 0){
+           F77_NAME(dsymv)(lower, &n, &one, C, &n, &u[(t-1)*n], &incOne, &one, tmp_n, &incOne);
+         }
+
+         for(i = 0; i < n; i++){
+           tmp_n[i] += (Y[t*n+i] - tmp_n3[i])*tmp;
+         }
+
+         //sigma
+         F77_NAME(daxpy)(&nn, &one, C, &incOne, C2, &incOne);
+
+         for(i = 0; i < n; i++){
+           C2[i*n+i] += tmp;
+         }
+
+         F77_NAME(dpotrf)(lower, &n, C2, &n, &info); if(info != 0){error("c++ error: dpotrf8 failed\n");}
+         F77_NAME(dpotri)(lower, &n, C2, &n, &info); if(info != 0){error("c++ error: dpotri failed\n");}
+
+         //finish mu
+         F77_NAME(dsymv)(lower, &n, &one, C2, &n, tmp_n, &incOne, &zero, tmp_n2, &incOne);
+
+         F77_NAME(dpotrf)(lower, &n, C2, &n, &info); if(info != 0){error("c++ error: dpotrf9 failed\n");}
+         mvrnorm(&u[t*n], tmp_n2, C2, n);
+
+       }else{//t==Nt
+
+         F77_NAME(dcopy)(&nn, C, &incOne, C2, &incOne);
+
+         //mu
+         F77_NAME(dsymv)(lower, &n, &one, C2, &n, &u[(t-1)*n], &incOne, &zero, tmp_n, &incOne);
+
+         for(i = 0; i < n; i++){
+           tmp_n[i] += (Y[t*n+i] - tmp_n3[i])*tmp;
+         }
+
+         //sigma
+         for(i = 0; i < n; i++){
+           C2[i*n+i] += tmp;
+         }
+
+         F77_NAME(dpotrf)(lower, &n, C2, &n, &info); if(info != 0){error("c++ error: dpotrf10 failed\n");}
+         F77_NAME(dpotri)(lower, &n, C2, &n, &info); if(info != 0){error("c++ error: dpotri failed\n");}
+
+         //finish mu
+         F77_NAME(dsymv)(lower, &n, &one, C2, &n, tmp_n, &incOne, &zero, tmp_n2, &incOne);
+
+         F77_NAME(dpotrf)(lower, &n, C2, &n, &info); if(info != 0){error("c++ error: dpotrf11 failed\n");}
+
+
+         /************/
+        mvrnorm(&u[t*n], tmp_n2, C2, n);
+       //mvrnorm(&beta[t*p], tmp_p2, tmp_pp, p);
+       // double radius=0.0002;
+       // double *temp = (double *) R_alloc(n, sizeof(double));
+       // int *acceptmark = (int *) R_alloc(n, sizeof(int));
+       // int sum=0;
+
+       // do {
+       //  mvrnorm(temp, tmp_n2, C2, n);
+       //   for (int dim=0; dim<n; dim++){
+       //     acceptmark[dim]=0;
+       //   }
+       //    for (int dim=0; dim<n; dim++){
+       //      if (((temp[dim]-beta[t*p+dim])*(temp[dim]-beta[t*p+dim]))>(radius*radius)){
+       //        acceptmark[dim]=1;
+       //      } else {
+       //        acceptmark[dim]=0;
+       //      }
+       //      sum=0;
+       //      for (int dim=0; dim<n; dim++){
+       //        sum=sum+acceptmark[dim];
+       //      }
+       //      //printf("%d,%d,%d\n",acceptmark[0],acceptmark[1],sum);
+       //   }
+       // }while(sum==0);
+
+       // for (int i=0; i<n; i++){
+       //  u[t*n+i]=temp[i];
+       // }
+       // /************/
+       }
+
+       ////////////////////
+       //update tau^2
+       ////////////////////
+       for(i = 0; i < n; i++){
+         tmp_n[i] = Y[t*n+i] - tmp_n3[i] - u[t*n+i];
+       }
+       //theta[t*nTheta+tauSqIndx] = 1.0/rgamma(tauSqIG[t*2]+n/2.0,
+        //              1.0/(tauSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n, &incOne)));
+
+       /************/
+
+       double radiustausq=REAL(radiustausq_r)[0];
+       double temptausq;
+       int acceptmarktausq=0;
+       drawtheta[t*nTheta+tauSqIndx] = 0.0;
+
+       double judge3=runif(0.0,1.0);
+       //printf("%f,\n",radiustausq);
+       do {
+         drawtheta[t*nTheta+tauSqIndx] = drawtheta[t*nTheta+tauSqIndx] + 1.0;
+         temptausq=1.0/rgamma(tauSqIG[t*2]+n/2.0,1.0/(tauSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n, &incOne)));
+            if (((temptausq-theta[t*nTheta+tauSqIndx])*(temptausq-theta[t*nTheta+tauSqIndx]))>(radiustausq*radiustausq)){
+              acceptmarktausq=2;
+            } else {
+              if (judge3<prob){
+                acceptmarktausq=1;
+              } else{
+                acceptmarktausq=0;
+              }
+            }
+
+       }  while(acceptmarktausq==0);
+
+       if (acceptmarktausq==1){
+        accepttheta[t*nTheta+tauSqIndx] = 1.0;
+       	theta[t*nTheta+tauSqIndx] = temptausq;
+       } else {
+       	double valueproposetausq = pgamma(1/(temptausq+radiustausq),tauSqIG[t*2]+n/2.0,1.0/(tauSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n, &incOne)),1,0)-pgamma(1/(temptausq-radiustausq),tauSqIG[t*2]+n/2.0,1.0/(tauSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n, &incOne)),1,0);
+       	double valuecurrenttausq = pgamma(1/(theta[t*nTheta+tauSqIndx]+radiustausq),tauSqIG[t*2]+n/2.0,1.0/(tauSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n, &incOne)),1,0)-pgamma(1/(theta[t*nTheta+tauSqIndx]-radiustausq),tauSqIG[t*2]+n/2.0,1.0/(tauSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n, &incOne)),1,0);
+        double accept_prob_tausq = (1-prob*valueproposetausq)/(1-valueproposetausq)*(1-valuecurrenttausq)/(1-prob*valuecurrenttausq);
+            if (accept_prob_tausq>=1) {
+              accept_prob_tausq=1;
+            }
+            if (runif(0.0,1.0) < accept_prob_tausq){
+              theta[t*nTheta+tauSqIndx] = temptausq;
+              accepttheta[t*nTheta+tauSqIndx] = 1.0;
+            } else {
+              accepttheta[t*nTheta+tauSqIndx] = 0.0;
+            }
+       }
+
+       //theta[t*nTheta+tauSqIndx] = temptausq;
+
+       /************/
+
+
+       ////////////////////
+       //update sigma^2
+       ////////////////////
+       F77_NAME(dcopy)(&n, &u[n*t], &incOne, tmp_n, &incOne);
+       if(t > 0){
+         for(i = 0; i < n; i++){
+           tmp_n[i] = tmp_n[i] - u[n*(t-1)+i];
+         }
+       }
+
+       F77_NAME(dsymv)(lower, &n, &one, C, &n, tmp_n, &incOne, &zero, tmp_n2, &incOne);
+
+       //theta[t*nTheta+sigmaSqIndx] = 1.0/rgamma(sigmaSqIG[t*2]+n/2.0,
+       //           1.0/(sigmaSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n2, &incOne)*theta[t*nTheta+sigmaSqIndx]));
+
+
+       /************/
+
+       //double radiussigmasq=0.0586;
+       //double radiussigmasq=0.1490;
+       //double radiussigmasq=0.2466*2;
+       double radiussigmasq=REAL(radiussigmasq_r)[0];
+       double tempsigmasq;
+       int acceptmarksigmasq=0;
+       drawtheta[t*nTheta+sigmaSqIndx] = 0.0;
+
+       //printf("%f,\n",radiussigmasq);
+       double judge4=runif(0.0,1.0);
+       do {
+         drawtheta[t*nTheta+sigmaSqIndx] = drawtheta[t*nTheta+sigmaSqIndx] + 1.0;
+         tempsigmasq=1.0/rgamma(sigmaSqIG[t*2]+n/2.0, 1.0/(sigmaSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n2, &incOne)*theta[t*nTheta+sigmaSqIndx]));
+            if (((tempsigmasq-theta[t*nTheta+sigmaSqIndx])*(tempsigmasq-theta[t*nTheta+sigmaSqIndx]))>(radiussigmasq*radiussigmasq)){
+              acceptmarksigmasq=2;
+            } else {
+              if (judge4<prob){
+                acceptmarksigmasq=1;
+              } else{
+                acceptmarksigmasq=0;
+              }
+            }
+       }  while(acceptmarksigmasq==0);
+
+       if (acceptmarksigmasq==1){
+        theta[t*nTheta+sigmaSqIndx] = tempsigmasq;
+        accepttheta[t*nTheta+sigmaSqIndx] = 1.0;
+       } else {
+        double valueproposesigmasq=pgamma(1/(tempsigmasq+radiussigmasq),sigmaSqIG[t*2]+n/2.0, 1.0/(sigmaSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n2, &incOne)*theta[t*nTheta+sigmaSqIndx]),1,0)-pgamma(1/(temptausq-radiustausq),sigmaSqIG[t*2]+n/2.0, 1.0/(sigmaSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n2, &incOne)*theta[t*nTheta+sigmaSqIndx]),1,0);
+        double valuecurrentsigmasq=pgamma(1/(theta[t*nTheta+tauSqIndx]+radiustausq),sigmaSqIG[t*2]+n/2.0, 1.0/(sigmaSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n2, &incOne)*theta[t*nTheta+sigmaSqIndx]),1,0)-pgamma(1/(theta[t*nTheta+tauSqIndx]-radiustausq),sigmaSqIG[t*2]+n/2.0, 1.0/(sigmaSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n2, &incOne)*theta[t*nTheta+sigmaSqIndx]),1,0);
+        double accept_prob_sigmasq=(1-prob*valueproposesigmasq)/(1-valueproposesigmasq)*(1-valuecurrentsigmasq)/(1-prob*valuecurrentsigmasq);
+            if (accept_prob_sigmasq>=1) {
+              accept_prob_sigmasq=1;
+            }
+            if (runif(0.0,1.0)<accept_prob_sigmasq){
+              theta[t*nTheta+sigmaSqIndx] = tempsigmasq;
+              accepttheta[t*nTheta+sigmaSqIndx] = 1.0;
+            } else {
+              accepttheta[t*nTheta+sigmaSqIndx] = 0.0;
+            }
+       }
+
+       //theta[t*nTheta+sigmaSqIndx] = tempsigmasq;
+
+       /************/
+
+       ////////////////////
+       //update phi
+       ////////////////////
+       // if(t > 0){
+       //    for(i = 0; i < n; i++){
+       //      tmp_n[i] = u[n*t+i]-u[n*(t-1)+i];
+       //    }
+       // }else{
+       //    F77_NAME(dcopy)(&n, &u[n*t], &incOne, tmp_n, &incOne);
+       // }
+
+       // //current
+       // gamma[0] = theta[t*nTheta+sigmaSqIndx];
+       // gamma[1] = logitInv(theta[t*nTheta+phiIndx], phiUnif[t*2], phiUnif[t*2+1]);
+       // if(covModel == "matern"){
+       //    gamma[2] = logitInv(theta[t*nTheta+nuIndx], nuUnif[t*2], nuUnif[t*2+1]);
+       // }
+
+       // spCovLT(coordsD, n, gamma, covModel, C);
+
+       // logDet = 0;
+       // F77_NAME(dpotrf)(lower, &n, C, &n, &info); if(info != 0){error("c++ error: dpotrf12 failed\n");}
+       // for(i = 0; i < n; i++) logDet += 2*log(C[i*n+i]);
+       // F77_NAME(dpotri)(lower, &n, C, &n, &info); if(info != 0){error("c++ error: dpotri failed\n");}
+
+       // F77_NAME(dsymv)(lower, &n, &one, C, &n, tmp_n, &incOne, &zero, tmp_n2, &incOne);
+       // logPost = -0.5*logDet-0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n2, &incOne);
+
+       // logPost += log(gamma[1] - phiUnif[t*2]) + log(phiUnif[t*2+1] - gamma[1]);
+       // if(covModel == "matern"){
+       //    logPost += log(gamma[2] - nuUnif[t*2]) + log(nuUnif[t*2+1] - gamma[2]);
+       // }
+
+       // //cand
+       // gamma[0] = theta[t*nTheta+sigmaSqIndx];
+       // gamma[1] = logitInv(rnorm(theta[t*nTheta+phiIndx], phiTuning[t]), phiUnif[t*2], phiUnif[t*2+1]);
+       // if(covModel == "matern"){
+       //    gamma[2] = logitInv(rnorm(theta[t*nTheta+nuIndx], nuTuning[t]), nuUnif[t*2], nuUnif[t*2+1]);
+       // }
+
+       // spCovLT(coordsD, n, gamma, covModel, C);
+
+       // logDetCand = 0;
+       // F77_NAME(dpotrf)(lower, &n, C, &n, &info); if(info != 0){error("c++ error: dpotrf13 failed\n");}
+       // for(i = 0; i < n; i++) logDetCand += 2*log(C[i*n+i]);
+       // F77_NAME(dpotri)(lower, &n, C, &n, &info); if(info != 0){error("c++ error: dpotri failed\n");}
+
+       // F77_NAME(dsymv)(lower, &n, &one, C, &n, tmp_n, &incOne, &zero, tmp_n2, &incOne);
+       // logPostCand = -0.5*logDetCand-0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n2, &incOne);
+
+       // logPostCand += log(gamma[1] - phiUnif[t*2]) + log(phiUnif[t*2+1] - gamma[1]);
+       // if(covModel == "matern"){
+       //    logPostCand += log(gamma[2] - nuUnif[t*2]) + log(nuUnif[t*2+1] - gamma[2]);
+       // }
+
+       // logMHRatio = logPostCand - logPost;
+
+       // if(runif(0.0,1.0) <= exp(logMHRatio)){
+
+       //    theta[t*nTheta+phiIndx] = logit(gamma[1], phiUnif[t*2], phiUnif[t*2+1]);
+       //    if(covModel == "matern"){
+       //      theta[t*nTheta+nuIndx] = logit(gamma[2], nuUnif[t*2], nuUnif[t*2+1]);
+       //    }
+       //    accept++;
+       //    batchAccept++;
+       // }
+
+       /************/
+
+       double radiusphi=REAL(radiusphi_r)[0];
+       double tempphi;
+       int acceptmarkphi=0;
+       drawtheta[t*nTheta+phiIndx] = 0.0;
+
+       //printf("%f,\n",radiusphi);
+
+       if(t > 0){
+         for(i = 0; i < n; i++){
+           tmp_n[i] = u[n*t+i]-u[n*(t-1)+i];
+         }
+       }else{
+         F77_NAME(dcopy)(&n, &u[n*t], &incOne, tmp_n, &incOne);
+       }
+
+       //current
+       gamma[0] = theta[t*nTheta+sigmaSqIndx];
+       gamma[1] = logitInv(theta[t*nTheta+phiIndx], phiUnif[t*2], phiUnif[t*2+1]);
+       if(covModel == "matern"){
+         gamma[2] = logitInv(theta[t*nTheta+nuIndx], nuUnif[t*2], nuUnif[t*2+1]);
+       }
+
+       spCovLT(coordsD, n, gamma, covModel, C);
+
+       logDet = 0;
+       F77_NAME(dpotrf)(lower, &n, C, &n, &info); if(info != 0){error("c++ error: dpotrf12 failed\n");}
+       for(i = 0; i < n; i++) logDet += 2*log(C[i*n+i]);
+       F77_NAME(dpotri)(lower, &n, C, &n, &info); if(info != 0){error("c++ error: dpotri failed\n");}
+
+       F77_NAME(dsymv)(lower, &n, &one, C, &n, tmp_n, &incOne, &zero, tmp_n2, &incOne);
+       logPost = -0.5*logDet-0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n2, &incOne);
+
+       logPost += log(gamma[1] - phiUnif[t*2]) + log(phiUnif[t*2+1] - gamma[1]);
+       if(covModel == "matern"){
+         logPost += log(gamma[2] - nuUnif[t*2]) + log(nuUnif[t*2+1] - gamma[2]);
+       }
+
+       double judge5=runif(0.0,1.0);
+       //cand
+       do{
+         drawtheta[t*nTheta+phiIndx] = drawtheta[t*nTheta+phiIndx] + 1.0;
+         gamma[0] = theta[t*nTheta+sigmaSqIndx];
+         gamma[1] = logitInv(rnorm(theta[t*nTheta+phiIndx], phiTuning[t]), phiUnif[t*2], phiUnif[t*2+1]);
+
+         spCovLT(coordsD, n, gamma, covModel, C);
+
+         logDetCand = 0;
+         F77_NAME(dpotrf)(lower, &n, C, &n, &info); if(info != 0){error("c++ error: dpotrf13 failed\n");}
+         for(i = 0; i < n; i++) logDetCand += 2*log(C[i*n+i]);
+         F77_NAME(dpotri)(lower, &n, C, &n, &info); if(info != 0){error("c++ error: dpotri failed\n");}
+
+         F77_NAME(dsymv)(lower, &n, &one, C, &n, tmp_n, &incOne, &zero, tmp_n2, &incOne);
+         logPostCand = -0.5*logDetCand-0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n2, &incOne);
+
+         logPostCand += log(gamma[1] - phiUnif[t*2]) + log(phiUnif[t*2+1] - gamma[1]);
+
+         logMHRatio = logPostCand - logPost;
+
+         if(runif(0.0,1.0) <= exp(logMHRatio)){
+
+           tempphi = logit(gamma[1], phiUnif[t*2], phiUnif[t*2+1]);
+           accept++;
+           batchAccept++;
+          }
+        acceptmarkphi=0;
+       if(((tempphi-theta[t*nTheta+phiIndx])*(tempphi-theta[t*nTheta+phiIndx]))>(radiusphi*radiusphi)){
+              acceptmarkphi=1;
+
+            } else {
+              if (judge5<prob){
+                acceptmarkphi=1;
+              } else{
+                acceptmarkphi=0;
+              }
+            }
+       }  while(acceptmarkphi==0);
+
+       theta[t*nTheta+phiIndx] = tempphi;
+       accepttheta[t*nTheta+phiIndx] = 1.0;
+
+
+
+       // if(runif(0.0,1.0) <= exp(logMHRatio)){
+
+       // do {
+       //   tempphi = logit(gamma[1], phiUnif[t*2], phiUnif[t*2+1]);
+
+       //  if (((tempphi-theta[t*nTheta+phiIndx])*(tempphi-theta[t*nTheta+phiIndx]))>(radiussigmasq*radiussigmasq)){
+       //        acceptmarkphi=1;
+       //      } else {
+       //        acceptmarkphi=0;
+       //      }
+       // }  while(acceptmarkphi==0);
+
+       //    theta[t*nTheta+phiIndx] = 1.0/tempphi;
+       //    accept++;
+       //   batchAccept++;
+       //  }
+       /************/
+
+       R_CheckUserInterrupt();
+     }//end Nt
 
      F77_NAME(dcopy)(&Ntp, beta, &incOne, &betaSamples[s*Ntp], &incOne);
      F77_NAME(dcopy)(&Ntn, u, &incOne, &uSamples[s*Ntn], &incOne);
@@ -773,769 +991,73 @@ extern "C" {
      F77_NAME(dcopy)(&Nt, drawbeta, &incOne, &betaDrawSamples[s*Nt], &incOne);
      F77_NAME(dcopy)(&Nt, acceptbeta, &incOne, &betaAcceptSamples[s*Nt], &incOne);
 
-     drawtheta[t*nTheta+tauSqIndx] = 0.0;
-     drawtheta[t*nTheta+sigmaSqIndx] = 0.0;
-     drawtheta[t*nTheta+phiIndx] = 0.0;
-     accepttheta[t*nTheta+tauSqIndx] = 0.0;
-     accepttheta[t*nTheta+sigmaSqIndx] = 0.0;
-     accepttheta[t*nTheta+phiIndx] = 0.0;
-
      F77_NAME(dcopy)(&NtnTheta, drawtheta, &incOne, &thetaDrawSamples[s*NtnTheta], &incOne);
      F77_NAME(dcopy)(&NtnTheta, accepttheta, &incOne, &thetaAcceptSamples[s*NtnTheta], &incOne);
 
-     } else if (mainjudge<0.2857143){
-       ////////////////////
-       //keep beta_0
-       ////////////////////
-       F77_NAME(dcopy)(&p, beta0, &incOne, &beta0Samples[s*p], &incOne);
-       drawbeta0=0.0;
-       acceptbeta0=0.0;
-       beta0DrawSamples[s]=drawbeta0;
-       beta0AcceptSamples[s]=acceptbeta0;
-       ////////////////////
-       //update y_t
-       ////////////////////
-       if(anyMissing || getFitted){
-         for(t = 0, j = 0; t < Nt; t++){
-           F77_NAME(dgemv)(ytran, &p, &n, &one, &X[t*n*p], &p, &beta[t*p], &incOne, &zero, tmp_n3, &incOne);
-           for(i = 0; i < n; i++, j++){
-             if(missing[j] == 1){
-               Y[n*t+i] = rnorm(tmp_n3[i] + u[n*t+i], sqrt(theta[t*nTheta+tauSqIndx]));
-               if(getFitted){
-                 ySamples[s*Ntn+t*n+i] = Y[n*t+i];
-               }
-             }else{
-               if(getFitted){
-                 ySamples[s*Ntn+t*n+i] = rnorm(tmp_n3[i] + u[n*t+i], sqrt(theta[t*nTheta+tauSqIndx]));
-               }
-             }
-           }
-         }
-       }
-       for(t = 0; t < Nt; t++){
-
-         ////////////////////
-         //update B_t
-         ////////////////////
-         //Sigma_Beta_t
-         // Rprintf("\ttmp_pp:"); printVec(tmp_pp,pp);
-         // Rprintf("\tsigmaEta:"); printVec(sigmaEta,pp);
-         F77_NAME(dcopy)(&pp, sigmaEta, &incOne, tmp_pp, &incOne);
-         // Rprintf("\ttmp_pp:"); printVec(tmp_pp,pp);
-         if(t < (Nt-1)){
-           F77_NAME(dscal)(&pp, &two, tmp_pp, &incOne);
-         }
-         // Rprintf("\ttmp_pp:"); printVec(tmp_pp,pp);
-
-         tmp = 1.0/theta[t*nTheta+tauSqIndx];
-         F77_NAME(daxpy)(&pp, &tmp, &XX[t*pp], &incOne, tmp_pp, &incOne);
-         // Rprintf("\ttmp_pp:"); printVec(tmp_pp,pp);
-
-         F77_NAME(dpotrf)(lower, &p, tmp_pp, &p, &info); if(info != 0){error("c++ error: dpotrf4 failed\n");}
-         F77_NAME(dpotri)(lower, &p, tmp_pp, &p, &info); if(info != 0){error("c++ error: dpotri failed\n");}
-
-         // Rprintf("\ttmp_pp:"); printVec(tmp_pp,pp);
-
-
-         //mu_Beta_t
-         for(i = 0; i < n; i++){
-           tmp_n[i] = (Y[n*t+i] - u[n*t+i])*tmp;
-         }
-         F77_NAME(dgemv)(ntran, &p, &n, &one, &X[t*n*p], &p, tmp_n, &incOne, &zero, tmp_p, &incOne);
-
-         if(t == 0){
-           for(i = 0; i < p; i++){
-             tmp_p2[i] = beta0[i]+beta[p*(t+1)+i];
-           }
-         }if(t == (Nt-1)){
-           F77_NAME(dcopy)(&p, &beta[p*(t-1)], &incOne, tmp_p2, &incOne);
-         }else{
-           for(i = 0; i < p; i++){
-             tmp_p2[i] = beta[p*(t-1)+i]+beta[p*(t+1)+i];
-           }
-         }
-
-         F77_NAME(dsymv)(lower, &p, &one, sigmaEta, &p, tmp_p2, &incOne, &one, tmp_p, &incOne);
-         F77_NAME(dsymv)(lower, &p, &one, tmp_pp, &p, tmp_p, &incOne, &zero, tmp_p2, &incOne);
-
-
-         F77_NAME(dpotrf)(lower, &p, tmp_pp, &p, &info); if(info != 0){error("c++ error: dpotrf5 failed\n");}
-         // Rprintf("\ttmp_pp:"); printVec(tmp_pp,pp);
-
-         /************/
-         //mvrnorm(&beta[t*p], tmp_p2, tmp_pp, p);
-
-         double *radiusbeta=REAL(radiusbeta_r);
-         double *tempbeta = (double *) R_alloc(p, sizeof(double));
-         int *acceptmarkbeta = (int *) R_alloc(p, sizeof(int));
-         int sumbeta=0;
-         int acceptindicator=0;
-         drawbeta[t]=0.0;
-
-         double judge2=runif(0.0,1.0);
-
-         do {
-           drawbeta[t]=drawbeta[t]+1.0;
-           mvrnorm(tempbeta, tmp_p2, tmp_pp, p);
-           for (int dim=0; dim<p; dim++){
-             acceptmarkbeta[dim]=0;
-           }
-           for (int dim=0; dim<p; dim++){
-             if (((tempbeta[dim]-beta[t*p+dim])*(tempbeta[dim]-beta[t*p+dim]))>(radiusbeta[dim]*radiusbeta[dim])){
-               acceptmarkbeta[dim]=1;
-             } else {
-               acceptmarkbeta[dim]=0;
-             }
-           }
-           sumbeta=0;
-           for (int dim=0; dim<p; dim++){
-             sumbeta=sumbeta+acceptmarkbeta[dim];
-           }
-           //printf("%d,%d,%d\n",acceptmark[0],acceptmark[1],sum);
-           if (sumbeta==0 && judge2<prob){
-             acceptindicator=1;
-           } else if(sumbeta>0){
-             acceptindicator=2;
-           } else {
-             acceptindicator=0;
-           }
-
-         }while(acceptindicator==0);
-
-         if (acceptindicator==1){
-           acceptbeta[t]=1.0;
-           beta[t*p]=tempbeta[0];
-           beta[t*p+1]=tempbeta[1];
-           // Rprintf("-------------------Middle------------------\n");
-         } else {
-           double *lowercurrentbeta = (double *) R_alloc(p, sizeof(double));
-           double *uppercurrentbeta = (double *) R_alloc(p, sizeof(double));
-           double *lowerproposebeta = (double *) R_alloc(p, sizeof(double));
-           double *upperproposebeta = (double *) R_alloc(p, sizeof(double));
-
-           for (int dim=0; dim<p; dim++){
-             lowercurrentbeta[dim]=beta[t*p+dim]-radiusbeta[dim];
-             uppercurrentbeta[dim]=beta[t*p+dim]+radiusbeta[dim];
-             lowerproposebeta[dim]=tempbeta[dim]-radiusbeta[dim];
-             upperproposebeta[dim]=tempbeta[dim]+radiusbeta[dim];
-
-           }
-           int nop=2;
-           double valuecurrentbeta=0.0;
-           double valueproposebeta=0.0;
-           // Rprintf("-------------------------------------------------\n");
-           // Rprintf("beta %i \n", t);
-           // Rprintf("\tradius vector:"); printVec(radiusbeta,p);
-           // Rprintf("\tmean vector:"); printVec(tmp_p2,p);
-           // Rprintf("\tcholcov:"); printVec(tmp_pp,pp);
-           // Rprintf("\tproposed vector:"); printVec(tempbeta,p);
-           // Rprintf("\tproposed vector lower:"); printVec(lowerproposebeta,p);
-           // Rprintf("\tproposed vector upper:"); printVec(upperproposebeta,p);
-           // Rprintf("-------------------------------------------------\n");
-           // Rprintf("\tcurrent vector:"); printVec(beta,p);
-           // Rprintf("\tcurrent vector lower:"); printVec(lowercurrentbeta,p);
-           // Rprintf("\tcurrent vector upper:"); printVec(uppercurrentbeta,p);
-
-           valueproposebeta=pmvnorm(nop,lowerproposebeta,upperproposebeta,tmp_p2,tmp_pp);
-           valuecurrentbeta=pmvnorm(nop,lowercurrentbeta,uppercurrentbeta,tmp_p2,tmp_pp);
-
-
-           // Rprintf("\n proposed prob %0.5f \n", valueproposebeta);
-           // Rprintf("current prob %0.5f \n", valuecurrentbeta);
-
-           double accept_prob_beta=(1-prob*valueproposebeta)/(1-valueproposebeta)*(1-valuecurrentbeta)/(1-prob*valuecurrentbeta);
-           if (accept_prob_beta>=1) {
-             accept_prob_beta=1;
-           }
-           // Rprintf("-------------------------------------------------\n");
-           // Rprintf("determine whether or not to accept the proposed value\n");
-           // Rprintf("alpha: %f \n \n", accept_prob_beta);
-           if (runif(0.0,1.0)<accept_prob_beta){
-             // Rprintf("Accepted\n");
-             beta[t*p]=tempbeta[0];
-             beta[t*p+1]=tempbeta[1];
-             acceptbeta[t]=1.0;
-           } else {
-             acceptbeta[t]=0.0;
-           }
-         }
-
-
-        R_CheckUserInterrupt();
-       }//end Nt
-
-       F77_NAME(dcopy)(&Ntp, beta, &incOne, &betaSamples[s*Ntp], &incOne);
-       F77_NAME(dcopy)(&Ntn, u, &incOne, &uSamples[s*Ntn], &incOne);
-       F77_NAME(dcopy)(&NtnTheta, theta, &incOne, &thetaSamples[s*NtnTheta], &incOne);
-
-       F77_NAME(dcopy)(&Nt, drawbeta, &incOne, &betaDrawSamples[s*Nt], &incOne);
-       F77_NAME(dcopy)(&Nt, acceptbeta, &incOne, &betaAcceptSamples[s*Nt], &incOne);
-
-       drawtheta[t*nTheta+tauSqIndx] = 0.0;
-       drawtheta[t*nTheta+sigmaSqIndx] = 0.0;
-       drawtheta[t*nTheta+phiIndx] = 0.0;
-       accepttheta[t*nTheta+tauSqIndx] = 0.0;
-       accepttheta[t*nTheta+sigmaSqIndx] = 0.0;
-       accepttheta[t*nTheta+phiIndx] = 0.0;
-
-       F77_NAME(dcopy)(&NtnTheta, drawtheta, &incOne, &thetaDrawSamples[s*NtnTheta], &incOne);
-       F77_NAME(dcopy)(&NtnTheta, accepttheta, &incOne, &thetaAcceptSamples[s*NtnTheta], &incOne);
-     } else if(mainjudge<0.4285714){
-       ////////////////////
-       //keep beta_0
-       ////////////////////
-       F77_NAME(dcopy)(&p, beta0, &incOne, &beta0Samples[s*p], &incOne);
-       drawbeta0=0.0;
-       acceptbeta0=0.0;
-       beta0DrawSamples[s]=drawbeta0;
-       beta0AcceptSamples[s]=acceptbeta0;
-       ////////////////////
-       //update y_t
-       ////////////////////
-       if(anyMissing || getFitted){
-         for(t = 0, j = 0; t < Nt; t++){
-           F77_NAME(dgemv)(ytran, &p, &n, &one, &X[t*n*p], &p, &beta[t*p], &incOne, &zero, tmp_n3, &incOne);
-           for(i = 0; i < n; i++, j++){
-             if(missing[j] == 1){
-               Y[n*t+i] = rnorm(tmp_n3[i] + u[n*t+i], sqrt(theta[t*nTheta+tauSqIndx]));
-               if(getFitted){
-                 ySamples[s*Ntn+t*n+i] = Y[n*t+i];
-               }
-             }else{
-               if(getFitted){
-                 ySamples[s*Ntn+t*n+i] = rnorm(tmp_n3[i] + u[n*t+i], sqrt(theta[t*nTheta+tauSqIndx]));
-               }
-             }
-           }
-         }
-       }
-       for(t = 0; t < Nt; t++){////////////////////
-         drawbeta[t]=0.0;
-         acceptbeta[t]=0.0;
-         //update u_t
-         ////////////////////
-         gamma[0] = theta[t*nTheta+sigmaSqIndx];
-         gamma[1] = logitInv(theta[t*nTheta+phiIndx], phiUnif[t*2], phiUnif[t*2+1]);
-         if(covModel == "matern"){
-           gamma[2] = logitInv(theta[t*nTheta+nuIndx], nuUnif[t*2], nuUnif[t*2+1]);
-         }
-
-         spCovLT(coordsD, n, gamma, covModel, C);
-         //printf("%d,%d,\n",C[0],C[1]);
-
-         F77_NAME(dpotrf)(lower, &n, C, &n, &info); if(info != 0){error("c++ error: dpotrf6 failed\n");}
-         F77_NAME(dpotri)(lower, &n, C, &n, &info); if(info != 0){error("c++ error: dpotri failed\n");}
-
-         F77_NAME(dgemv)(ytran, &p, &n, &one, &X[t*n*p], &p, &beta[t*p], &incOne, &zero, tmp_n3, &incOne);
-
-         if(t < (Nt-1)){
-
-           //t+1
-           gamma[0] = theta[(t+1)*nTheta+sigmaSqIndx];
-           gamma[1] = logitInv(theta[(t+1)*nTheta+phiIndx], phiUnif[(t+1)*2], phiUnif[(t+1)*2+1]);
-           if(covModel == "matern"){
-             gamma[2] = logitInv(theta[(t+1)*nTheta+nuIndx], nuUnif[(t+1)*2], nuUnif[(t+1)*2+1]);
-           }
-
-           spCovLT(coordsD, n, gamma, covModel, C2);
-
-           F77_NAME(dpotrf)(lower, &n, C2, &n, &info); if(info != 0){error("c++ error: dpotrf7 failed\n");}
-           F77_NAME(dpotri)(lower, &n, C2, &n, &info); if(info != 0){error("c++ error: dpotri failed\n");}
-
-           //mu
-           F77_NAME(dsymv)(lower, &n, &one, C2, &n, &u[(t+1)*n], &incOne, &zero, tmp_n, &incOne);
-
-           if(t > 0){
-             F77_NAME(dsymv)(lower, &n, &one, C, &n, &u[(t-1)*n], &incOne, &one, tmp_n, &incOne);
-           }
-
-           for(i = 0; i < n; i++){
-             tmp_n[i] += (Y[t*n+i] - tmp_n3[i])*tmp;
-           }
-
-           //sigma
-           F77_NAME(daxpy)(&nn, &one, C, &incOne, C2, &incOne);
-
-           for(i = 0; i < n; i++){
-             C2[i*n+i] += tmp;
-           }
-
-           F77_NAME(dpotrf)(lower, &n, C2, &n, &info); if(info != 0){error("c++ error: dpotrf8 failed\n");}
-           F77_NAME(dpotri)(lower, &n, C2, &n, &info); if(info != 0){error("c++ error: dpotri failed\n");}
-
-           //finish mu
-           F77_NAME(dsymv)(lower, &n, &one, C2, &n, tmp_n, &incOne, &zero, tmp_n2, &incOne);
-
-           F77_NAME(dpotrf)(lower, &n, C2, &n, &info); if(info != 0){error("c++ error: dpotrf9 failed\n");}
-           mvrnorm(&u[t*n], tmp_n2, C2, n);
-
-         }else{//t==Nt
-
-           F77_NAME(dcopy)(&nn, C, &incOne, C2, &incOne);
-
-           //mu
-           F77_NAME(dsymv)(lower, &n, &one, C2, &n, &u[(t-1)*n], &incOne, &zero, tmp_n, &incOne);
-
-           for(i = 0; i < n; i++){
-             tmp_n[i] += (Y[t*n+i] - tmp_n3[i])*tmp;
-           }
-
-           //sigma
-           for(i = 0; i < n; i++){
-             C2[i*n+i] += tmp;
-           }
-
-           F77_NAME(dpotrf)(lower, &n, C2, &n, &info); if(info != 0){error("c++ error: dpotrf10 failed\n");}
-           F77_NAME(dpotri)(lower, &n, C2, &n, &info); if(info != 0){error("c++ error: dpotri failed\n");}
-
-           //finish mu
-           F77_NAME(dsymv)(lower, &n, &one, C2, &n, tmp_n, &incOne, &zero, tmp_n2, &incOne);
-
-           F77_NAME(dpotrf)(lower, &n, C2, &n, &info); if(info != 0){error("c++ error: dpotrf11 failed\n");}
-
-
-           /************/
-           mvrnorm(&u[t*n], tmp_n2, C2, n);
-         }
-           R_CheckUserInterrupt();
-           }
-         //end Nt
-
-       F77_NAME(dcopy)(&Ntp, beta, &incOne, &betaSamples[s*Ntp], &incOne);
-       F77_NAME(dcopy)(&Ntn, u, &incOne, &uSamples[s*Ntn], &incOne);
-       F77_NAME(dcopy)(&NtnTheta, theta, &incOne, &thetaSamples[s*NtnTheta], &incOne);
-
-       F77_NAME(dcopy)(&Nt, drawbeta, &incOne, &betaDrawSamples[s*Nt], &incOne);
-       F77_NAME(dcopy)(&Nt, acceptbeta, &incOne, &betaAcceptSamples[s*Nt], &incOne);
-
-       drawtheta[t*nTheta+tauSqIndx] = 0.0;
-       drawtheta[t*nTheta+sigmaSqIndx] = 0.0;
-       drawtheta[t*nTheta+phiIndx] = 0.0;
-       accepttheta[t*nTheta+tauSqIndx] = 0.0;
-       accepttheta[t*nTheta+sigmaSqIndx] = 0.0;
-       accepttheta[t*nTheta+phiIndx] = 0.0;
-
-       F77_NAME(dcopy)(&NtnTheta, drawtheta, &incOne, &thetaDrawSamples[s*NtnTheta], &incOne);
-       F77_NAME(dcopy)(&NtnTheta, accepttheta, &incOne, &thetaAcceptSamples[s*NtnTheta], &incOne);
-
-     } else if(mainjudge<0.5714286){
-       ////////////////////
-       //keep beta_0
-       ////////////////////
-       F77_NAME(dcopy)(&p, beta0, &incOne, &beta0Samples[s*p], &incOne);
-       drawbeta0=0.0;
-       acceptbeta0=0.0;
-       beta0DrawSamples[s]=drawbeta0;
-       beta0AcceptSamples[s]=acceptbeta0;
-       ////////////////////
-       //update y_t
-       ////////////////////
-       if(anyMissing || getFitted){
-         for(t = 0, j = 0; t < Nt; t++){
-           F77_NAME(dgemv)(ytran, &p, &n, &one, &X[t*n*p], &p, &beta[t*p], &incOne, &zero, tmp_n3, &incOne);
-           for(i = 0; i < n; i++, j++){
-             if(missing[j] == 1){
-               Y[n*t+i] = rnorm(tmp_n3[i] + u[n*t+i], sqrt(theta[t*nTheta+tauSqIndx]));
-               if(getFitted){
-                 ySamples[s*Ntn+t*n+i] = Y[n*t+i];
-               }
-             }else{
-               if(getFitted){
-                 ySamples[s*Ntn+t*n+i] = rnorm(tmp_n3[i] + u[n*t+i], sqrt(theta[t*nTheta+tauSqIndx]));
-               }
-             }
-           }
-         }
-       }
-       for(t = 0; t < Nt; t++){
-         drawbeta[t]=0.0;
-         acceptbeta[t]=0.0;
-         ////////////////////
-         //update tau^2
-         ////////////////////
-         for(i = 0; i < n; i++){
-           tmp_n[i] = Y[t*n+i] - tmp_n3[i] - u[t*n+i];
-         }
-         //theta[t*nTheta+tauSqIndx] = 1.0/rgamma(tauSqIG[t*2]+n/2.0,
-         //              1.0/(tauSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n, &incOne)));
-
-         /************/
-
-         double radiustausq=REAL(radiustausq_r)[0];
-         double temptausq;
-         int acceptmarktausq=0;
-         drawtheta[t*nTheta+tauSqIndx] = 0.0;
-
-         double judge3=runif(0.0,1.0);
-         //printf("%f,\n",radiustausq);
-         do {
-           drawtheta[t*nTheta+tauSqIndx] = drawtheta[t*nTheta+tauSqIndx] + 1.0;
-           temptausq=1.0/rgamma(tauSqIG[t*2]+n/2.0,1.0/(tauSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n, &incOne)));
-           if (((temptausq-theta[t*nTheta+tauSqIndx])*(temptausq-theta[t*nTheta+tauSqIndx]))>(radiustausq*radiustausq)){
-             acceptmarktausq=2;
-           } else {
-             if (judge3<prob){
-               acceptmarktausq=1;
-             } else{
-               acceptmarktausq=0;
-             }
-           }
-
-         }  while(acceptmarktausq==0);
-
-         if (acceptmarktausq==1){
-           accepttheta[t*nTheta+tauSqIndx] = 1.0;
-           theta[t*nTheta+tauSqIndx] = temptausq;
-         } else {
-           double valueproposetausq = pgamma(1/(temptausq+radiustausq),tauSqIG[t*2]+n/2.0,1.0/(tauSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n, &incOne)),1,0)-pgamma(1/(temptausq-radiustausq),tauSqIG[t*2]+n/2.0,1.0/(tauSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n, &incOne)),1,0);
-           double valuecurrenttausq = pgamma(1/(theta[t*nTheta+tauSqIndx]+radiustausq),tauSqIG[t*2]+n/2.0,1.0/(tauSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n, &incOne)),1,0)-pgamma(1/(theta[t*nTheta+tauSqIndx]-radiustausq),tauSqIG[t*2]+n/2.0,1.0/(tauSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n, &incOne)),1,0);
-           double accept_prob_tausq = (1-prob*valueproposetausq)/(1-valueproposetausq)*(1-valuecurrenttausq)/(1-prob*valuecurrenttausq);
-           if (accept_prob_tausq>=1) {
-             accept_prob_tausq=1;
-           }
-           if (runif(0.0,1.0) < accept_prob_tausq){
-             theta[t*nTheta+tauSqIndx] = temptausq;
-             accepttheta[t*nTheta+tauSqIndx] = 1.0;
-           } else {
-             accepttheta[t*nTheta+tauSqIndx] = 0.0;
-           }
-         }
-
-         R_CheckUserInterrupt();
-         }//end Nt
-
-       F77_NAME(dcopy)(&Ntp, beta, &incOne, &betaSamples[s*Ntp], &incOne);
-       F77_NAME(dcopy)(&Ntn, u, &incOne, &uSamples[s*Ntn], &incOne);
-       F77_NAME(dcopy)(&NtnTheta, theta, &incOne, &thetaSamples[s*NtnTheta], &incOne);
-
-       F77_NAME(dcopy)(&Nt, drawbeta, &incOne, &betaDrawSamples[s*Nt], &incOne);
-       F77_NAME(dcopy)(&Nt, acceptbeta, &incOne, &betaAcceptSamples[s*Nt], &incOne);
-
-       // drawtheta[t*nTheta+tauSqIndx] = 0.0;
-       drawtheta[t*nTheta+sigmaSqIndx] = 0.0;
-       drawtheta[t*nTheta+phiIndx] = 0.0;
-       // accepttheta[t*nTheta+tauSqIndx] = 0.0;
-       accepttheta[t*nTheta+sigmaSqIndx] = 0.0;
-       accepttheta[t*nTheta+phiIndx] = 0.0;
-
-       F77_NAME(dcopy)(&NtnTheta, drawtheta, &incOne, &thetaDrawSamples[s*NtnTheta], &incOne);
-       F77_NAME(dcopy)(&NtnTheta, accepttheta, &incOne, &thetaAcceptSamples[s*NtnTheta], &incOne);
-     } else if(mainjudge<0.7142857){
-       ////////////////////
-       //keep beta_0
-       ////////////////////
-       F77_NAME(dcopy)(&p, beta0, &incOne, &beta0Samples[s*p], &incOne);
-       drawbeta0=0.0;
-       acceptbeta0=0.0;
-       beta0DrawSamples[s]=drawbeta0;
-       beta0AcceptSamples[s]=acceptbeta0;
-       ////////////////////
-       //update y_t
-       ////////////////////
-       if(anyMissing || getFitted){
-         for(t = 0, j = 0; t < Nt; t++){
-           F77_NAME(dgemv)(ytran, &p, &n, &one, &X[t*n*p], &p, &beta[t*p], &incOne, &zero, tmp_n3, &incOne);
-           for(i = 0; i < n; i++, j++){
-             if(missing[j] == 1){
-               Y[n*t+i] = rnorm(tmp_n3[i] + u[n*t+i], sqrt(theta[t*nTheta+tauSqIndx]));
-               if(getFitted){
-                 ySamples[s*Ntn+t*n+i] = Y[n*t+i];
-               }
-             }else{
-               if(getFitted){
-                 ySamples[s*Ntn+t*n+i] = rnorm(tmp_n3[i] + u[n*t+i], sqrt(theta[t*nTheta+tauSqIndx]));
-               }
-             }
-           }
-         }
-       }
-       for(t = 0; t < Nt; t++){
-         drawbeta[t]=0.0;
-         acceptbeta[t]=0.0;
-         ////////////////////
-         //update sigma^2
-         ////////////////////
-         F77_NAME(dcopy)(&n, &u[n*t], &incOne, tmp_n, &incOne);
-         if(t > 0){
-           for(i = 0; i < n; i++){
-             tmp_n[i] = tmp_n[i] - u[n*(t-1)+i];
-           }
-         }
-
-         F77_NAME(dsymv)(lower, &n, &one, C, &n, tmp_n, &incOne, &zero, tmp_n2, &incOne);
-
-         //theta[t*nTheta+sigmaSqIndx] = 1.0/rgamma(sigmaSqIG[t*2]+n/2.0,
-         //           1.0/(sigmaSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n2, &incOne)*theta[t*nTheta+sigmaSqIndx]));
-
-
-         /************/
-
-         //double radiussigmasq=0.0586;
-         //double radiussigmasq=0.1490;
-         //double radiussigmasq=0.2466*2;
-         double radiussigmasq=REAL(radiussigmasq_r)[0];
-         double tempsigmasq;
-         int acceptmarksigmasq=0;
-         drawtheta[t*nTheta+sigmaSqIndx] = 0.0;
-
-         //printf("%f,\n",radiussigmasq);
-         double judge4=runif(0.0,1.0);
-         do {
-           drawtheta[t*nTheta+sigmaSqIndx] = drawtheta[t*nTheta+sigmaSqIndx] + 1.0;
-           tempsigmasq=1.0/rgamma(sigmaSqIG[t*2]+n/2.0, 1.0/(sigmaSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n2, &incOne)*theta[t*nTheta+sigmaSqIndx]));
-           if (((tempsigmasq-theta[t*nTheta+sigmaSqIndx])*(tempsigmasq-theta[t*nTheta+sigmaSqIndx]))>(radiussigmasq*radiussigmasq)){
-             acceptmarksigmasq=2;
-           } else {
-             if (judge4<prob){
-               acceptmarksigmasq=1;
-             } else{
-               acceptmarksigmasq=0;
-             }
-           }
-         }  while(acceptmarksigmasq==0);
-
-         if (acceptmarksigmasq==1){
-           theta[t*nTheta+sigmaSqIndx] = tempsigmasq;
-           accepttheta[t*nTheta+sigmaSqIndx] = 1.0;
-         } else {
-           double valueproposesigmasq=pgamma(1/(tempsigmasq+radiussigmasq),sigmaSqIG[t*2]+n/2.0, 1.0/(sigmaSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n2, &incOne)*theta[t*nTheta+sigmaSqIndx]),1,0)-pgamma(1/(tempsigmasq-radiussigmasq),sigmaSqIG[t*2]+n/2.0, 1.0/(sigmaSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n2, &incOne)*theta[t*nTheta+sigmaSqIndx]),1,0);
-           double valuecurrentsigmasq=pgamma(1/(theta[t*nTheta+sigmaSqIndx]+radiussigmasq),sigmaSqIG[t*2]+n/2.0, 1.0/(sigmaSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n2, &incOne)*theta[t*nTheta+sigmaSqIndx]),1,0)-pgamma(1/(theta[t*nTheta+sigmaSqIndx]-radiussigmasq),sigmaSqIG[t*2]+n/2.0, 1.0/(sigmaSqIG[t*2+1]+0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n2, &incOne)*theta[t*nTheta+sigmaSqIndx]),1,0);
-           double accept_prob_sigmasq=(1-prob*valueproposesigmasq)/(1-valueproposesigmasq)*(1-valuecurrentsigmasq)/(1-prob*valuecurrentsigmasq);
-           if (accept_prob_sigmasq>=1) {
-             accept_prob_sigmasq=1;
-           }
-           if (runif(0.0,1.0)<accept_prob_sigmasq){
-             theta[t*nTheta+sigmaSqIndx] = tempsigmasq;
-             accepttheta[t*nTheta+sigmaSqIndx] = 1.0;
-           } else {
-             accepttheta[t*nTheta+sigmaSqIndx] = 0.0;
-           }
-         }
-
-       R_CheckUserInterrupt();
-       }//end Nt
-
-       F77_NAME(dcopy)(&Ntp, beta, &incOne, &betaSamples[s*Ntp], &incOne);
-       F77_NAME(dcopy)(&Ntn, u, &incOne, &uSamples[s*Ntn], &incOne);
-       F77_NAME(dcopy)(&NtnTheta, theta, &incOne, &thetaSamples[s*NtnTheta], &incOne);
-
-       F77_NAME(dcopy)(&Nt, drawbeta, &incOne, &betaDrawSamples[s*Nt], &incOne);
-       F77_NAME(dcopy)(&Nt, acceptbeta, &incOne, &betaAcceptSamples[s*Nt], &incOne);
-
-       drawtheta[t*nTheta+tauSqIndx] = 0.0;
-       // drawtheta[t*nTheta+sigmaSqIndx] = 0.0;
-       drawtheta[t*nTheta+phiIndx] = 0.0;
-       accepttheta[t*nTheta+tauSqIndx] = 0.0;
-       // accepttheta[t*nTheta+sigmaSqIndx] = 0.0;
-       accepttheta[t*nTheta+phiIndx] = 0.0;
-
-       F77_NAME(dcopy)(&NtnTheta, drawtheta, &incOne, &thetaDrawSamples[s*NtnTheta], &incOne);
-       F77_NAME(dcopy)(&NtnTheta, accepttheta, &incOne, &thetaAcceptSamples[s*NtnTheta], &incOne);
-
-     } else if(mainjudge<0.8571429){
-       ////////////////////
-       //keep beta_0
-       ////////////////////
-       F77_NAME(dcopy)(&p, beta0, &incOne, &beta0Samples[s*p], &incOne);
-       drawbeta0=0.0;
-       acceptbeta0=0.0;
-       beta0DrawSamples[s]=drawbeta0;
-       beta0AcceptSamples[s]=acceptbeta0;
-       ////////////////////
-       //update y_t
-       ////////////////////
-       if(anyMissing || getFitted){
-         for(t = 0, j = 0; t < Nt; t++){
-           F77_NAME(dgemv)(ytran, &p, &n, &one, &X[t*n*p], &p, &beta[t*p], &incOne, &zero, tmp_n3, &incOne);
-           for(i = 0; i < n; i++, j++){
-             if(missing[j] == 1){
-               Y[n*t+i] = rnorm(tmp_n3[i] + u[n*t+i], sqrt(theta[t*nTheta+tauSqIndx]));
-               if(getFitted){
-                 ySamples[s*Ntn+t*n+i] = Y[n*t+i];
-               }
-             }else{
-               if(getFitted){
-                 ySamples[s*Ntn+t*n+i] = rnorm(tmp_n3[i] + u[n*t+i], sqrt(theta[t*nTheta+tauSqIndx]));
-               }
-             }
-           }
-         }
-       }
-       for(t = 0; t < Nt; t++){
-         drawbeta[t]=0.0;
-         acceptbeta[t]=0.0;
-         ////////////////////
-         //update phi
-         ////////////////////
-
-         double radiusphi=REAL(radiusphi_r)[0];
-         double tempphi;
-         int acceptmarkphi=0;
-         drawtheta[t*nTheta+phiIndx] = 0.0;
-
-         //printf("%f,\n",radiusphi);
-
-         if(t > 0){
-           for(i = 0; i < n; i++){
-             tmp_n[i] = u[n*t+i]-u[n*(t-1)+i];
-           }
-         }else{
-           F77_NAME(dcopy)(&n, &u[n*t], &incOne, tmp_n, &incOne);
-         }
-
-         //current
-         gamma[0] = theta[t*nTheta+sigmaSqIndx];
-         gamma[1] = logitInv(theta[t*nTheta+phiIndx], phiUnif[t*2], phiUnif[t*2+1]);
-         if(covModel == "matern"){
-           gamma[2] = logitInv(theta[t*nTheta+nuIndx], nuUnif[t*2], nuUnif[t*2+1]);
-         }
-
-         spCovLT(coordsD, n, gamma, covModel, C);
-
-         logDet = 0;
-         F77_NAME(dpotrf)(lower, &n, C, &n, &info); if(info != 0){error("c++ error: dpotrf12 failed\n");}
-         for(i = 0; i < n; i++) logDet += 2*log(C[i*n+i]);
-         F77_NAME(dpotri)(lower, &n, C, &n, &info); if(info != 0){error("c++ error: dpotri failed\n");}
-
-         F77_NAME(dsymv)(lower, &n, &one, C, &n, tmp_n, &incOne, &zero, tmp_n2, &incOne);
-         logPost = -0.5*logDet-0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n2, &incOne);
-
-         logPost += log(gamma[1] - phiUnif[t*2]) + log(phiUnif[t*2+1] - gamma[1]);
-         if(covModel == "matern"){
-           logPost += log(gamma[2] - nuUnif[t*2]) + log(nuUnif[t*2+1] - gamma[2]);
-         }
-
-         double judge5=runif(0.0,1.0);
-         //cand
-         do{
-           drawtheta[t*nTheta+phiIndx] = drawtheta[t*nTheta+phiIndx] + 1.0;
-           gamma[0] = theta[t*nTheta+sigmaSqIndx];
-           gamma[1] = logitInv(rnorm(theta[t*nTheta+phiIndx], phiTuning[t]), phiUnif[t*2], phiUnif[t*2+1]);
-
-           spCovLT(coordsD, n, gamma, covModel, C);
-
-           logDetCand = 0;
-           F77_NAME(dpotrf)(lower, &n, C, &n, &info); if(info != 0){error("c++ error: dpotrf13 failed\n");}
-           for(i = 0; i < n; i++) logDetCand += 2*log(C[i*n+i]);
-           F77_NAME(dpotri)(lower, &n, C, &n, &info); if(info != 0){error("c++ error: dpotri failed\n");}
-
-           F77_NAME(dsymv)(lower, &n, &one, C, &n, tmp_n, &incOne, &zero, tmp_n2, &incOne);
-           logPostCand = -0.5*logDetCand-0.5*F77_NAME(ddot)(&n, tmp_n, &incOne, tmp_n2, &incOne);
-
-           logPostCand += log(gamma[1] - phiUnif[t*2]) + log(phiUnif[t*2+1] - gamma[1]);
-
-           logMHRatio = logPostCand - logPost;
-
-           if(runif(0.0,1.0) <= exp(logMHRatio)){
-
-             tempphi = logit(gamma[1], phiUnif[t*2], phiUnif[t*2+1]);
-             accept++;
-             batchAccept++;
-           }
-           acceptmarkphi=0;
-           if(((tempphi-theta[t*nTheta+phiIndx])*(tempphi-theta[t*nTheta+phiIndx]))>(radiusphi*radiusphi)){
-             acceptmarkphi=1;
-
-           } else {
-             if (judge5<prob){
-               acceptmarkphi=1;
-             } else{
-               acceptmarkphi=0;
-             }
-           }
-         }  while(acceptmarkphi==0);
-
-         theta[t*nTheta+phiIndx] = tempphi;
-         accepttheta[t*nTheta+phiIndx] = 1.0;
-
-         R_CheckUserInterrupt();
-       }//end Nt
-
-       F77_NAME(dcopy)(&Ntp, beta, &incOne, &betaSamples[s*Ntp], &incOne);
-       F77_NAME(dcopy)(&Ntn, u, &incOne, &uSamples[s*Ntn], &incOne);
-       F77_NAME(dcopy)(&NtnTheta, theta, &incOne, &thetaSamples[s*NtnTheta], &incOne);
-
-       F77_NAME(dcopy)(&Nt, drawbeta, &incOne, &betaDrawSamples[s*Nt], &incOne);
-       F77_NAME(dcopy)(&Nt, acceptbeta, &incOne, &betaAcceptSamples[s*Nt], &incOne);
-
-       drawtheta[t*nTheta+tauSqIndx] = 0.0;
-       drawtheta[t*nTheta+sigmaSqIndx] = 0.0;
-       // drawtheta[t*nTheta+phiIndx] = 0.0;
-       accepttheta[t*nTheta+tauSqIndx] = 0.0;
-       accepttheta[t*nTheta+sigmaSqIndx] = 0.0;
-       // accepttheta[t*nTheta+phiIndx] = 0.0;
-
-       F77_NAME(dcopy)(&NtnTheta, drawtheta, &incOne, &thetaDrawSamples[s*NtnTheta], &incOne);
-       F77_NAME(dcopy)(&NtnTheta, accepttheta, &incOne, &thetaAcceptSamples[s*NtnTheta], &incOne);
-     } else {
-       ////////////////////
-       //keep beta_0
-       ////////////////////
-       F77_NAME(dcopy)(&p, beta0, &incOne, &beta0Samples[s*p], &incOne);
-       drawbeta0=0.0;
-       acceptbeta0=0.0;
-       beta0DrawSamples[s]=drawbeta0;
-       beta0AcceptSamples[s]=acceptbeta0;
-       ////////////////////
-       //update y_t
-       ////////////////////
-       if(anyMissing || getFitted){
-         for(t = 0, j = 0; t < Nt; t++){
-           F77_NAME(dgemv)(ytran, &p, &n, &one, &X[t*n*p], &p, &beta[t*p], &incOne, &zero, tmp_n3, &incOne);
-           for(i = 0; i < n; i++, j++){
-             if(missing[j] == 1){
-               Y[n*t+i] = rnorm(tmp_n3[i] + u[n*t+i], sqrt(theta[t*nTheta+tauSqIndx]));
-               if(getFitted){
-                 ySamples[s*Ntn+t*n+i] = Y[n*t+i];
-               }
-             }else{
-               if(getFitted){
-                 ySamples[s*Ntn+t*n+i] = rnorm(tmp_n3[i] + u[n*t+i], sqrt(theta[t*nTheta+tauSqIndx]));
-               }
-             }
-           }
-         }
-       }
-
-       F77_NAME(dcopy)(&Ntp, beta, &incOne, &betaSamples[s*Ntp], &incOne);
-       F77_NAME(dcopy)(&Ntn, u, &incOne, &uSamples[s*Ntn], &incOne);
-       F77_NAME(dcopy)(&NtnTheta, theta, &incOne, &thetaSamples[s*NtnTheta], &incOne);
-
-       for(t = 0; t < Nt; t++){
-         drawbeta[t]=0.0;
-         acceptbeta[t]=0.0;
-       }
-
-       F77_NAME(dcopy)(&Nt, drawbeta, &incOne, &betaDrawSamples[s*Nt], &incOne);
-       F77_NAME(dcopy)(&Nt, acceptbeta, &incOne, &betaAcceptSamples[s*Nt], &incOne);
-
-       drawtheta[t*nTheta+tauSqIndx] = 0.0;
-       drawtheta[t*nTheta+sigmaSqIndx] = 0.0;
-       drawtheta[t*nTheta+phiIndx] = 0.0;
-       accepttheta[t*nTheta+tauSqIndx] = 0.0;
-       accepttheta[t*nTheta+sigmaSqIndx] = 0.0;
-       accepttheta[t*nTheta+phiIndx] = 0.0;
-
-       F77_NAME(dcopy)(&NtnTheta, drawtheta, &incOne, &thetaDrawSamples[s*NtnTheta], &incOne);
-       F77_NAME(dcopy)(&NtnTheta, accepttheta, &incOne, &thetaAcceptSamples[s*NtnTheta], &incOne);
-       //update Sigma_eta
-       for(i = 0; i < p; i++){
-         tmp_p[i] = beta[i]-beta0[i];
-       }
-       F77_NAME(dgemm)(ntran, ytran, &p, &p, &incOne, &one, tmp_p, &p, tmp_p, &p, &zero, tmp_pp, &p);
-
-       for(t = 1; t < Nt; t++){
-         for(i = 0; i < p; i++){
-           tmp_p[i] = beta[p*t+i]-beta[p*(t-1)+i];
-         }
-         F77_NAME(dgemm)(ntran, ytran, &p, &p, &incOne, &one, tmp_p, &p, tmp_p, &p, &one, tmp_pp, &p);
-       }
-
-       F77_NAME(daxpy)(&pp, &one, SigmaEtaIW_S, &incOne, tmp_pp, &incOne);
-
-       rwish(tmp_pp, SigmaEtaIW_df+Nt, p, sigmaEta, tmp_pp2, 1);
-       F77_NAME(dcopy)(&pp, sigmaEta, &incOne, &sigmaEtaSamples[s*pp], &incOne);
+     //update Sigma_eta
+     for(i = 0; i < p; i++){
+       tmp_p[i] = beta[i]-beta0[i];
      }
+     F77_NAME(dgemm)(ntran, ytran, &p, &p, &incOne, &one, tmp_p, &p, tmp_p, &p, &zero, tmp_pp, &p);
+
+     for(t = 1; t < Nt; t++){
+       for(i = 0; i < p; i++){
+       tmp_p[i] = beta[p*t+i]-beta[p*(t-1)+i];
+       }
+       F77_NAME(dgemm)(ntran, ytran, &p, &p, &incOne, &one, tmp_p, &p, tmp_p, &p, &one, tmp_pp, &p);
+     }
+
+     F77_NAME(daxpy)(&pp, &one, SigmaEtaIW_S, &incOne, tmp_pp, &incOne);
+
+
+     rwish(tmp_pp, SigmaEtaIW_df+Nt, p, sigmaEta, tmp_pp2, 1);
+     /********************/
+     // double *tempsigmaEta = (double *) R_alloc(pp, sizeof(double));
+     // //double radiussigmaEta=171.67;
+     // //double radiussigmaEta=442.66;
+     // //double radiussigmaEta=744.82*2;
+     // double radiussigmaEta=REAL(radiussigmaEta_r)[0];
+     // int acceptmarksigmaEta=0;
+
+     // //printf("%f,\n",radiussigmaEta);
+
+     // do {
+     //  rwish(tmp_pp, SigmaEtaIW_df+Nt, p, tempsigmaEta, tmp_pp2, 1);
+     //  double sum=0;
+
+     //  for (int dim=0; dim<pp; dim++){
+     //    sum=sum+(tempsigmaEta[dim]-sigmaEta[dim])*(tempsigmaEta[dim]-sigmaEta[dim]);
+     //  }
+
+     //  acceptmarksigmaEta=0;
+     //  if (sum>(radiussigmaEta)){
+     //          acceptmarksigmaEta=1;
+     //        } else {
+     //          if (runif(0.0,1.0)<prob){
+     //            acceptmarksigmaEta=1;
+     //          } else{
+     //            acceptmarksigmaEta=0;
+     //          }
+     //        }
+     //    //printf("%d,%d\n",acceptmarksigmaEta,sum);
+     // } while(acceptmarksigmaEta==0);
+
+     // sigmaEta=tempsigmaEta;
+
+      /********************/
+
+     // F77_NAME(dpotrf)(lower, &p, tmp_pp, &p, &info); if(info != 0){error("c++ error: dpotrf failed\n");}
+     // F77_NAME(dpotri)(lower, &p, tmp_pp, &p, &info); if(info != 0){error("c++ error: dpotri failed\n");}
+
+     // for(i = 1; i < p; i++){
+     //   for(j = 0; j < i; j++){
+     //    tmp_pp[i*p+j] = tmp_pp[j*p+i];
+     //   }
+     // }
+     // riwishart(tmp_pp, SigmaEtaIW_df+Nt, p, C, C2, C3, sigmaEta);
+
+     F77_NAME(dcopy)(&pp, sigmaEta, &incOne, &sigmaEtaSamples[s*pp], &incOne);
+
 
      //report
      if(verbose){
@@ -1616,6 +1138,8 @@ extern "C" {
       SET_VECTOR_ELT(result_r, 11, ySamples_r);
       SET_VECTOR_ELT(resultName_r, 11, mkChar("p.y.samples"));
     }
+
+
 
     namesgets(result_r, resultName_r);
 
